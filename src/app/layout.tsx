@@ -4,8 +4,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Catalyst Command Center",
-  description: "AI Video Generation Dashboard",
+  title: "Catalyst Content OS",
+  description: "AI-powered content operating system for creators",
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark h-full antialiased">
+    <html lang="en" className="dark h-full antialiased" style={{ colorScheme: 'dark' }}>
       <body className="min-h-full flex flex-col">
         <Topbar />
         <Sidebar />

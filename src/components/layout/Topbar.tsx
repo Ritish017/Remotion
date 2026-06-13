@@ -23,7 +23,7 @@ export function Topbar() {
           CATALYST<span className="text-accent-brand">.</span>
         </div>
         <Badge variant="outline" className="font-mono text-[10px] py-0 h-5 border-border-strong text-muted-foreground bg-transparent hover:bg-transparent">
-          v4.0
+          Content OS
         </Badge>
       </div>
 
@@ -34,7 +34,7 @@ export function Topbar() {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-ai"></span>
           </span>
           <span className="font-mono text-xs text-muted-foreground tracking-wide">
-            server:8000 · online
+            catalyst:8000 · online
           </span>
         </div>
         <div className="font-mono text-sm tracking-wider w-[76px] text-right">
