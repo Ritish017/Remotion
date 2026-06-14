@@ -1,0 +1,60 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1080px; --video-height: 1920px;
+  --color-accent: #ff00aa; --color-bg: #050505;
+  --color-secondary: #00ffcc; --color-glow: rgba(255,0,170,0.2);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.65);
+  --motion-speed: 1.0; --motion-stagger: 0.06;
+  --safe-zone-top: 120px; --safe-zone-bottom: 200px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; position:relative; }
+.bg-grad { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 40%, rgba(0,255,204,0.12) 0%, transparent 60%); }
+.content { position:relative; z-index:10; display:flex; flex-direction:column; justify-content:center; padding:var(--safe-zone-top) 72px var(--safe-zone-bottom); gap:40px; height:100%; }
+.section-label { font-family:'JetBrains Mono',monospace; font-size:18px; color:var(--color-accent); letter-spacing:0.3em; text-transform:uppercase; opacity:0; }
+.headline { font-family:'Bebas Neue',sans-serif; font-size:100px; line-height:0.95; color:var(--color-text); opacity:0; transform:translateY(50px); }
+.bullets { display:flex; flex-direction:column; gap:32px; }
+.bullet { display:flex; align-items:flex-start; gap:24px; opacity:0; transform:translateX(-40px); }
+.bullet-icon { width:44px; height:44px; border-radius:50%; border:2px solid #ef4444; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#ef4444; font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.bullet-text { font-family:'Space Grotesk',sans-serif; font-size:32px; color:var(--color-text); line-height:1.35; padding-top:6px; }
+</style>
+</head>
+<body>
+<div class="bg-grad"></div>
+<div class="content">
+  <div class="section-label" id="sl">THE PROBLEM</div>
+  <div class="headline" id="hl" data-placeholder="problem_headline">You're Still Doing It the Old Way</div>
+  <div class="bullets">
+    <div class="bullet" id="b1"><div class="bullet-icon">âœ•</div><div class="bullet-text" data-placeholder="problem_1">Hours wasted on tasks AI does in seconds</div></div>
+    <div class="bullet" id="b2"><div class="bullet-icon">âœ•</div><div class="bullet-text" data-placeholder="problem_2">Competitors are already ahead of you</div></div>
+    <div class="bullet" id="b3"><div class="bullet-icon">âœ•</div><div class="bullet-text" data-placeholder="problem_3">Missing $0 tools that replace expensive software</div></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||1.4;
+const stagger=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-stagger'))||0.06;
+const sl=document.getElementById('sl'),hl=document.getElementById('hl');
+const bullets=[document.getElementById('b1'),document.getElementById('b2'),document.getElementById('b3')];
+gsap.set([sl,hl,...bullets],{opacity:0}); gsap.set(hl,{y:50}); gsap.set(bullets,{x:-40});
+const tl=gsap.timeline({paused:true});
+tl.to(sl,{opacity:1,duration:0.3/speed,ease:'premium'})
+  .to(hl,{opacity:1,y:0,duration:0.5/speed,ease:'punchIn'},'+=0.05')
+  .to(bullets,{opacity:1,x:0,duration:0.4/speed,ease:'premium',stagger:stagger},'+=0.1');
+window.__timelines=window.__timelines||{};window.__timelines['ai-social-problem-b']=tl;
+</script>
+</body></html>
+

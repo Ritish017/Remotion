@@ -1,0 +1,103 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1080px; --video-height: 1080px;
+  --color-accent: #e63946; --color-bg: #050a14;
+  --color-secondary: #ff6b6b; --color-glow: rgba(230,57,70,0.25);
+  --color-panel: rgba(230,57,70,0.08);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.65);
+  --motion-speed: 0.8; --motion-stagger: 0.15;
+  --safe-zone-top: 60px; --safe-zone-bottom: 60px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; position:relative; }
+.vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%); z-index:1; }
+.stadium-lights { position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; }
+.light-tl { position:absolute; top:-80px; left:-80px; width:400px; height:400px; background:radial-gradient(circle, rgba(230,57,70,0.06) 0%, transparent 70%); }
+.light-tr { position:absolute; top:-80px; right:-80px; width:400px; height:400px; background:radial-gradient(circle, rgba(230,57,70,0.06) 0%, transparent 70%); }
+.broadcast-bar { position:absolute; top:var(--safe-zone-top); left:0; right:0; height:5px; background:linear-gradient(90deg, transparent, var(--color-accent), transparent); transform:scaleX(0); transform-origin:left; z-index:10; }
+.content { position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:var(--safe-zone-top) 60px var(--safe-zone-bottom); gap:0; }
+.competition-label { font-family:'JetBrains Mono',monospace; font-size:16px; color:var(--color-accent); letter-spacing:0.4em; text-transform:uppercase; margin-bottom:28px; opacity:0; }
+.matchup { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:32px; width:100%; }
+.team-card { display:flex; flex-direction:column; align-items:center; gap:12px; opacity:0; }
+.team-card.home { transform:translateX(-80px); }
+.team-card.away { transform:translateX(80px); }
+.team-flag { width:96px; height:96px; border-radius:50%; background:rgba(255,255,255,0.1); border:3px solid var(--color-accent); display:flex; align-items:center; justify-content:center; font-size:48px; box-shadow:0 0 24px var(--color-glow); }
+.team-name { font-family:'Bebas Neue',sans-serif; font-size:52px; color:var(--color-text); text-align:center; letter-spacing:1px; }
+.vs-block { display:flex; flex-direction:column; align-items:center; gap:12px; }
+.vs-text { font-family:'Bebas Neue',sans-serif; font-size:80px; color:var(--color-accent); text-shadow:0 0 40px var(--color-glow); opacity:0; transform:scale(0.5); }
+.kick-time { font-family:'JetBrains Mono',monospace; font-size:18px; color:var(--color-muted); }
+.info-row { display:flex; gap:40px; align-items:center; margin-top:40px; opacity:0; transform:translateY(30px); }
+.info-item { text-align:center; }
+.info-label { font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--color-muted); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:4px; }
+.info-value { font-family:'Space Grotesk',sans-serif; font-size:20px; color:var(--color-text); font-weight:600; }
+.info-sep { width:1px; height:40px; background:rgba(255,255,255,0.15); }
+.stat-strip { position:absolute; bottom:var(--safe-zone-bottom); left:0; right:0; display:flex; justify-content:center; gap:0; z-index:10; opacity:0; }
+.stat-cell { flex:1; text-align:center; padding:16px 8px; border-top:1px solid rgba(255,255,255,0.08); }
+.stat-cell:nth-child(2) { border-left:1px solid rgba(255,255,255,0.08); border-right:1px solid rgba(255,255,255,0.08); }
+.stat-cell-num { font-family:'Bebas Neue',sans-serif; font-size:40px; color:var(--color-accent); line-height:1; }
+.stat-cell-label { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--color-muted); letter-spacing:0.15em; text-transform:uppercase; margin-top:2px; }
+</style>
+</head>
+<body>
+<div class="stadium-lights"><div class="light-tl"></div><div class="light-tr"></div></div>
+<div class="vignette"></div>
+<div class="broadcast-bar" id="broadcastBar"></div>
+<div class="content">
+  <div class="competition-label" id="compLabel" data-placeholder="competition">FIFA WORLD CUP 2026</div>
+  <div class="matchup">
+    <div class="team-card home" id="homeCard">
+      <div class="team-flag">ðŸ </div>
+      <div class="team-name" data-placeholder="home_team">HOME</div>
+    </div>
+    <div class="vs-block">
+      <div class="vs-text" id="vsText">VS</div>
+      <div class="kick-time" data-placeholder="match_time">20:00</div>
+    </div>
+    <div class="team-card away" id="awayCard">
+      <div class="team-flag">âœˆï¸</div>
+      <div class="team-name" data-placeholder="away_team">AWAY</div>
+    </div>
+  </div>
+  <div class="info-row" id="infoRow">
+    <div class="info-item"><div class="info-label">Venue</div><div class="info-value" data-placeholder="venue">TBC</div></div>
+    <div class="info-sep"></div>
+    <div class="info-item"><div class="info-label">Stage</div><div class="info-value">Group Stage</div></div>
+    <div class="info-sep"></div>
+    <div class="info-item"><div class="info-label">Broadcast</div><div class="info-value">LIVE</div></div>
+  </div>
+</div>
+<div class="stat-strip" id="statStrip">
+  <div class="stat-cell"><div class="stat-cell-num">32</div><div class="stat-cell-label">Teams</div></div>
+  <div class="stat-cell"><div class="stat-cell-num" data-placeholder="hook_stat">64</div><div class="stat-cell-label">Matches</div></div>
+  <div class="stat-cell"><div class="stat-cell-num">26</div><div class="stat-cell-label">Days</div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||0.8;
+const bb=document.getElementById('broadcastBar'),cl=document.getElementById('compLabel'),hc=document.getElementById('homeCard'),ac=document.getElementById('awayCard'),vs=document.getElementById('vsText'),ir=document.getElementById('infoRow'),ss=document.getElementById('statStrip');
+gsap.set([cl,hc,ac,vs,ir,ss],{opacity:0}); gsap.set(hc,{x:-80}); gsap.set(ac,{x:80}); gsap.set(vs,{scale:0.5}); gsap.set(ir,{y:30});
+const tl=gsap.timeline({paused:true});
+tl.to(bb,{scaleX:1,duration:0.8/speed,ease:'power2.inOut'})
+  .to(cl,{opacity:1,duration:0.4/speed,ease:'premium'},'+=0.1')
+  .to([hc,ac],{opacity:1,x:0,duration:0.6/speed,ease:'punchIn',stagger:0.1},'+=0.1')
+  .to(vs,{opacity:1,scale:1,duration:0.5/speed,ease:'punchIn'},'+=0.05')
+  .to(ir,{opacity:1,y:0,duration:0.5/speed,ease:'premium'},'+=0.1')
+  .to(ss,{opacity:1,duration:0.4/speed,ease:'premium'},'+=0.1')
+  .to(vs,{textShadow:'0 0 80px var(--color-glow)',duration:1.2/speed,ease:'sine.inOut',repeat:-1,yoyo:true},'+=0.2');
+window.__timelines=window.__timelines||{};window.__timelines['fifa-sports-hook-c']=tl;
+</script>
+</body></html>
+

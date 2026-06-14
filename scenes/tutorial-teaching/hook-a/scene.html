@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --video-width: 1920px;
+  --video-height: 1080px;
+  --color-accent: #00ff88;
+  --color-bg: #0a0a0a;
+  --color-secondary: #00cc6a;
+  --color-glow: rgba(0,255,136,0.2);
+  --color-text: #ffffff;
+  --color-muted: rgba(255,255,255,0.6);
+  --motion-speed: 1.0;
+  --motion-stagger: 0.1;
+  --safe-zone-top: 48px;
+  --safe-zone-bottom: 48px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: var(--video-width);
+  height: var(--video-height);
+  background: var(--color-bg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.layer-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--color-accent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-accent) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.04;
+}
+
+.layer-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.layer-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  padding: var(--safe-zone-top) 120px var(--safe-zone-bottom);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 32px;
+}
+
+.episode-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  color: var(--color-muted);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateX(-40px);
+}
+
+.bracket-left, .bracket-right {
+  display: inline-block;
+  color: var(--color-accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.prompt-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  color: var(--color-accent);
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+}
+
+.headline-wrap {
+  overflow: hidden;
+}
+
+.headline {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 140px;
+  line-height: 0.95;
+  color: var(--color-text);
+  letter-spacing: -2px;
+  opacity: 0;
+  transform: translateY(60px);
+}
+
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  border: 2px solid var(--color-accent);
+  border-radius: 999px;
+  padding: 12px 36px;
+  width: fit-content;
+  opacity: 0;
+  transform: scale(0.8);
+  box-shadow: 0 0 32px var(--color-glow);
+}
+
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+.stat-divider {
+  width: 2px;
+  height: 32px;
+  background: var(--color-accent);
+  opacity: 0.4;
+}
+
+.stat-desc {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.subtext {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+  color: var(--color-muted);
+  max-width: 900px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.accent-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+}
+
+svg.draw-line {
+  position: absolute;
+  bottom: var(--safe-zone-bottom);
+  left: 120px;
+  opacity: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="layer-grid"></div>
+<div class="layer-noise"></div>
+
+<div class="layer-content">
+  <div class="episode-label">
+    <span class="bracket-left">[ </span>EPISODE<span class="bracket-right"> ]</span>
+  </div>
+
+  <div class="prompt-line">→ <span data-placeholder="hook_subtext">The simplest way to understand this</span></div>
+
+  <div class="headline-wrap">
+    <div class="headline" data-placeholder="hook_headline">Master This in 60 Seconds</div>
+  </div>
+
+  <div class="stat-badge">
+    <span class="stat-value" data-placeholder="hook_stat">87%</span>
+    <div class="stat-divider"></div>
+    <span class="stat-desc">of developers use this</span>
+  </div>
+
+  <p class="subtext" data-placeholder="hook_subtext">The simplest way to understand what everyone is talking about</p>
+</div>
+
+<div class="accent-line" id="accentLine"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium', 'M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn', 'M0,0 C0.5,-0.5 0.7,1.5 1,1');
+
+const speed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed')) || 1.0;
+const stagger = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-stagger')) || 0.1;
+
+const headline = document.querySelector('.headline');
+const episodeLabel = document.querySelector('.episode-label');
+const promptLine = document.querySelector('.prompt-line');
+const statBadge = document.querySelector('.stat-badge');
+const subtext = document.querySelector('.subtext');
+const accentLine = document.getElementById('accentLine');
+
+gsap.set(episodeLabel, { opacity: 0, x: -40 });
+gsap.set(promptLine, { opacity: 0, width: 0 });
+gsap.set(headline, { opacity: 0, y: 60 });
+gsap.set(statBadge, { opacity: 0, scale: 0.8 });
+gsap.set(subtext, { opacity: 0, y: 20 });
+gsap.set(accentLine, { width: 0 });
+
+const tl = gsap.timeline({ paused: true });
+
+tl.to(episodeLabel, { opacity: 1, x: 0, duration: 0.5 / speed, ease: 'premium' })
+  .to(promptLine, { opacity: 1, width: 'auto', duration: 0.8 / speed, ease: 'none' }, '+=0.1')
+  .to(headline, { opacity: 1, y: 0, duration: 0.7 / speed, ease: 'punchIn' }, '+=0.1')
+  .to(statBadge, { opacity: 1, scale: 1, duration: 0.5 / speed, ease: 'punchIn' }, '+=0.2')
+  .to(subtext, { opacity: 1, y: 0, duration: 0.6 / speed, ease: 'premium' }, '-=0.2')
+  .to(accentLine, { width: '100%', duration: 1.2 / speed, ease: 'power2.inOut' }, '+=0.3');
+
+window.__timelines = window.__timelines || {};
+window.__timelines['tutorial-teaching-hook-a'] = tl;
+</script>
+</body>
+</html>

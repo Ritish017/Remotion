@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1920px; --video-height: 1080px;
+  --color-accent: #fbbf24; --color-bg: #0d0d0d;
+  --color-secondary: #f59e0b; --color-glow: rgba(251,191,36,0.2);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.6);
+  --motion-speed: 1.0; --motion-stagger: 0.1;
+  --safe-zone-top: 48px; --safe-zone-bottom: 48px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; position:relative; }
+.layer-grid { position:absolute; inset:0; background-image: linear-gradient(var(--color-accent) 1px,transparent 1px), linear-gradient(90deg,var(--color-accent) 1px,transparent 1px); background-size:80px 80px; opacity:0.03; }
+.content { position:relative; z-index:10; display:grid; grid-template-columns:1fr 1fr; width:100%; height:100%; }
+.left { display:flex; flex-direction:column; justify-content:center; padding:var(--safe-zone-top) 80px var(--safe-zone-bottom) 120px; gap:40px; }
+.right { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:var(--safe-zone-top) 120px var(--safe-zone-bottom) 80px; border-left:1px solid rgba(255,255,255,0.06); }
+.section-label { font-family:'JetBrains Mono',monospace; font-size:16px; color:var(--color-accent); letter-spacing:0.3em; text-transform:uppercase; opacity:0; }
+.headline { font-family:'Syne',sans-serif; font-size:72px; font-weight:800; line-height:1.05; color:var(--color-text); opacity:0; transform:translateY(40px); }
+.stat-block { display:flex; flex-direction:column; gap:4px; opacity:0; }
+.stat-num { font-family:'Bebas Neue',sans-serif; font-size:120px; color:var(--color-accent); line-height:1; }
+.stat-sub { font-family:'Space Grotesk',sans-serif; font-size:20px; color:var(--color-muted); }
+.bullet { display:flex; align-items:flex-start; gap:20px; opacity:0; transform:translateY(30px); }
+.bullet-dot { width:10px; height:10px; border-radius:50%; background:#ef4444; margin-top:8px; flex-shrink:0; }
+.bullet-text { font-family:'Space Grotesk',sans-serif; font-size:28px; color:var(--color-text); line-height:1.4; }
+.bullets { display:flex; flex-direction:column; gap:36px; }
+</style>
+</head>
+<body>
+<div class="layer-grid"></div>
+<div class="content">
+  <div class="left">
+    <div class="section-label">THE PROBLEM</div>
+    <div class="headline" data-placeholder="problem_headline">Here's Why Most People Struggle</div>
+    <div class="stat-block">
+      <div class="stat-num" data-placeholder="hook_stat">3Ã—</div>
+      <div class="stat-sub">more time wasted than necessary</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="bullets">
+      <div class="bullet" id="b1"><div class="bullet-dot"></div><div class="bullet-text" data-placeholder="problem_1">Too much theory, not enough practice</div></div>
+      <div class="bullet" id="b2"><div class="bullet-dot"></div><div class="bullet-text" data-placeholder="problem_2">Documentation is confusing and outdated</div></div>
+      <div class="bullet" id="b3"><div class="bullet-dot"></div><div class="bullet-text" data-placeholder="problem_3">No clear starting point for beginners</div></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||1.0;
+const stagger=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-stagger'))||0.1;
+const sl=document.querySelector('.section-label'),hl=document.querySelector('.headline'),sb=document.querySelector('.stat-block');
+const bullets=[document.getElementById('b1'),document.getElementById('b2'),document.getElementById('b3')];
+gsap.set([sl,hl,sb,...bullets],{opacity:0}); gsap.set(hl,{y:40}); gsap.set(bullets,{y:30});
+const tl=gsap.timeline({paused:true});
+tl.to(sl,{opacity:1,duration:0.4/speed,ease:'premium'})
+  .to(hl,{opacity:1,y:0,duration:0.7/speed,ease:'punchIn'},'+=0.1')
+  .to(sb,{opacity:1,duration:0.6/speed,ease:'premium'},'+=0.2')
+  .to(bullets,{opacity:1,y:0,duration:0.5/speed,ease:'power2.out',stagger:stagger},'+=0.1');
+window.__timelines=window.__timelines||{};window.__timelines['tutorial-teaching-problem-b']=tl;
+</script>
+</body></html>
+

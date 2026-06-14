@@ -1,0 +1,68 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1080px; --video-height: 1920px;
+  --color-accent: #6c47ff; --color-bg: #080808;
+  --color-secondary: #ec4899; --color-glow: rgba(108,71,255,0.2);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.65);
+  --motion-speed: 1.4; --motion-stagger: 0.06;
+  --safe-zone-top: 120px; --safe-zone-bottom: 200px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
+.bg-grad { position:absolute; inset:0; background: radial-gradient(ellipse at 30% 20%, rgba(108,71,255,0.15) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(236,72,153,0.15) 0%, transparent 50%); }
+.stripe { position:absolute; left:0; top:var(--safe-zone-top); bottom:var(--safe-zone-bottom); width:6px; background:var(--color-accent); box-shadow:0 0 24px var(--color-glow); opacity:0; }
+.content { position:relative; z-index:10; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:var(--safe-zone-top) 72px var(--safe-zone-bottom) 88px; gap:36px; height:100%; width:100%; }
+.tag { display:inline-flex; align-items:center; gap:10px; background:rgba(108,71,255,0.12); border:1px solid rgba(108,71,255,0.3); border-radius:999px; padding:8px 24px; opacity:0; transform:translateY(-20px); }
+.tag-dot { width:8px; height:8px; border-radius:50%; background:var(--color-accent); }
+.tag-text { font-family:'JetBrains Mono',monospace; font-size:16px; color:var(--color-accent); letter-spacing:0.15em; text-transform:uppercase; }
+.headline { font-family:'Bebas Neue',sans-serif; font-size:120px; line-height:0.92; color:var(--color-text); letter-spacing:-1px; opacity:0; transform:translateX(-60px); }
+.headline em { color:var(--color-accent); font-style:normal; }
+.subtext { font-family:'Space Grotesk',sans-serif; font-size:28px; color:var(--color-muted); line-height:1.5; max-width:900px; opacity:0; }
+.stats-row { display:flex; gap:48px; opacity:0; transform:translateY(30px); }
+.stat-item { display:flex; flex-direction:column; gap:4px; }
+.stat-num { font-family:'Bebas Neue',sans-serif; font-size:72px; color:var(--color-accent); line-height:1; }
+.stat-label-text { font-family:'Space Grotesk',sans-serif; font-size:18px; color:var(--color-muted); text-transform:uppercase; letter-spacing:0.1em; }
+.stat-sep { width:1px; background:rgba(255,255,255,0.15); align-self:stretch; }
+</style>
+</head>
+<body>
+<div class="bg-grad"></div>
+<div class="stripe" id="stripe"></div>
+<div class="content">
+  <div class="tag" id="tag"><div class="tag-dot"></div><div class="tag-text">AI UPDATE</div></div>
+  <div class="headline" id="headline"><em data-placeholder="hook_headline">AI Just Changed Everything</em></div>
+  <p class="subtext" id="subtext" data-placeholder="hook_subtext">And most people haven't noticed yet</p>
+  <div class="stats-row" id="statsRow">
+    <div class="stat-item"><div class="stat-num" data-placeholder="hook_stat">10Ã—</div><div class="stat-label-text">faster</div></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><div class="stat-num">$0</div><div class="stat-label-text">cost</div></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||1.4;
+const stripe=document.getElementById('stripe'),tag=document.getElementById('tag'),hl=document.getElementById('headline'),st=document.getElementById('subtext'),sr=document.getElementById('statsRow');
+gsap.set([stripe,tag,hl,st,sr],{opacity:0}); gsap.set(tag,{y:-20}); gsap.set(hl,{x:-60}); gsap.set(sr,{y:30});
+const tl=gsap.timeline({paused:true});
+tl.to(stripe,{opacity:1,duration:0.4/speed,ease:'power2.out'})
+  .to(tag,{opacity:1,y:0,duration:0.4/speed,ease:'premium'},'+=0.05')
+  .to(hl,{opacity:1,x:0,duration:0.5/speed,ease:'punchIn'},'+=0.08')
+  .to(st,{opacity:1,duration:0.4/speed,ease:'premium'},'+=0.08')
+  .to(sr,{opacity:1,y:0,duration:0.4/speed,ease:'punchIn'},'+=0.08');
+window.__timelines=window.__timelines||{};window.__timelines['ai-social-hook-c']=tl;
+</script>
+</body></html>
+

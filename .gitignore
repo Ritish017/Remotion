@@ -43,3 +43,5 @@ next-env.d.ts
 # python / backend
 __pycache__/
 jobs/
+templates/
+local_data.db

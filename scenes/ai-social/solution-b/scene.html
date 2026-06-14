@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1080px; --video-height: 1920px;
+  --color-accent: #06b6d4; --color-bg: #000000;
+  --color-secondary: #14b8a6; --color-glow: rgba(6,182,212,0.2);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.65);
+  --motion-speed: 1.0; --motion-stagger: 0.06;
+  --safe-zone-top: 120px; --safe-zone-bottom: 200px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; position:relative; }
+.bg-grad { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 50%, rgba(6,182,212,0.1) 0%, transparent 65%); }
+.content { position:relative; z-index:10; display:flex; flex-direction:column; justify-content:center; padding:var(--safe-zone-top) 72px var(--safe-zone-bottom); gap:40px; height:100%; }
+.section-label { font-family:'JetBrains Mono',monospace; font-size:18px; color:var(--color-accent); letter-spacing:0.3em; text-transform:uppercase; opacity:0; }
+.headline { font-family:'Bebas Neue',sans-serif; font-size:100px; line-height:0.95; color:var(--color-text); opacity:0; transform:translateY(50px); }
+.solutions { display:flex; flex-direction:column; gap:28px; }
+.sol-item { display:flex; align-items:flex-start; gap:24px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-left:4px solid var(--color-accent); border-radius:8px; padding:24px 28px; opacity:0; transform:translateX(40px); }
+.sol-num { font-family:'Bebas Neue',sans-serif; font-size:52px; color:var(--color-accent); line-height:1; flex-shrink:0; }
+.sol-text { font-family:'Space Grotesk',sans-serif; font-size:28px; color:var(--color-text); line-height:1.4; padding-top:8px; }
+.result-chip { display:inline-flex; align-items:center; gap:12px; background:var(--color-accent); border-radius:999px; padding:16px 36px; opacity:0; transform:scale(0.8); }
+.result-text { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; color:#000; }
+</style>
+</head>
+<body>
+<div class="bg-grad"></div>
+<div class="content">
+  <div class="section-label" id="sl">THE SHORTCUT</div>
+  <div class="headline" id="hl" data-placeholder="solution_headline">Here's What Everyone's Using</div>
+  <div class="solutions">
+    <div class="sol-item" id="s1"><div class="sol-num">1</div><div class="sol-text" data-placeholder="solution_key_1">One prompt replaces an hour of work</div></div>
+    <div class="sol-item" id="s2"><div class="sol-num">2</div><div class="sol-text" data-placeholder="solution_key_2">Free tools that outperform paid ones</div></div>
+  </div>
+  <div class="result-chip" id="chip">
+    <div class="result-text" data-placeholder="hook_stat">Saves 3h/day</div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||1.4;
+const stagger=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-stagger'))||0.06;
+const sl=document.getElementById('sl'),hl=document.getElementById('hl'),s1=document.getElementById('s1'),s2=document.getElementById('s2'),chip=document.getElementById('chip');
+gsap.set([sl,hl,s1,s2,chip],{opacity:0}); gsap.set(hl,{y:50}); gsap.set([s1,s2],{x:40}); gsap.set(chip,{scale:0.8});
+const tl=gsap.timeline({paused:true});
+tl.to(sl,{opacity:1,duration:0.3/speed,ease:'premium'})
+  .to(hl,{opacity:1,y:0,duration:0.5/speed,ease:'punchIn'},'+=0.05')
+  .to([s1,s2],{opacity:1,x:0,duration:0.4/speed,ease:'premium',stagger:stagger},'+=0.1')
+  .to(chip,{opacity:1,scale:1,duration:0.4/speed,ease:'punchIn'},'+=0.1');
+window.__timelines=window.__timelines||{};window.__timelines['ai-social-solution-b']=tl;
+</script>
+</body></html>
+

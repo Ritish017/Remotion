@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1080px; --video-height: 1920px;
+  --color-accent: #00d4ff; --color-bg: #000000;
+  --color-secondary: #7b2fff; --color-glow: rgba(0,212,255,0.2);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.65);
+  --motion-speed: 1.4; --motion-stagger: 0.06;
+  --safe-zone-top: 120px; --safe-zone-bottom: 200px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
+.bg-pulse { position:absolute; inset:0; background:radial-gradient(ellipse at center, var(--color-glow) 0%, transparent 55%); }
+.border-frame { position:absolute; inset:40px; border:2px solid var(--color-accent); border-radius:4px; opacity:0; box-shadow:0 0 40px var(--color-glow); }
+.content { position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; text-align:center; gap:28px; padding:var(--safe-zone-top) 60px var(--safe-zone-bottom); }
+.cta-big { font-family:'Bebas Neue',sans-serif; font-size:140px; line-height:0.9; color:var(--color-text); opacity:0; transform:scale(0.85); }
+.cta-accent { color:var(--color-accent); display:block; }
+.urgency { font-family:'Space Grotesk',sans-serif; font-size:30px; color:var(--color-muted); opacity:0; transform:translateY(20px); }
+.channel { font-family:'JetBrains Mono',monospace; font-size:26px; color:var(--color-accent); letter-spacing:0.12em; opacity:0; }
+.follow-btn { display:inline-flex; align-items:center; gap:12px; border:2px solid var(--color-accent); border-radius:999px; padding:18px 48px; opacity:0; transform:translateY(30px); }
+.follow-text { font-family:'Syne',sans-serif; font-size:28px; font-weight:700; color:var(--color-text); letter-spacing:0.05em; }
+</style>
+</head>
+<body>
+<div class="bg-pulse"></div>
+<div class="border-frame" id="bf"></div>
+<div class="content">
+  <div class="cta-big" id="cta"><span data-placeholder="cta_text">FOLLOW</span><span class="cta-accent">NOW</span></div>
+  <div class="follow-btn" id="fb"><div class="follow-text">+ Follow</div></div>
+  <div class="urgency" id="urg" data-placeholder="cta_urgency">Posted daily</div>
+  <div class="channel" id="ch" data-placeholder="channel_name">@CatalystStudio</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||1.4;
+const bf=document.getElementById('bf'),cta=document.getElementById('cta'),fb=document.getElementById('fb'),urg=document.getElementById('urg'),ch=document.getElementById('ch');
+gsap.set([bf,cta,fb,urg,ch],{opacity:0}); gsap.set(cta,{scale:0.85}); gsap.set([fb,urg],{y:30});
+const tl=gsap.timeline({paused:true});
+tl.to(bf,{opacity:1,duration:0.4/speed,ease:'premium'})
+  .to(cta,{opacity:1,scale:1,duration:0.5/speed,ease:'punchIn'},'+=0.05')
+  .to(fb,{opacity:1,y:0,duration:0.4/speed,ease:'premium'},'+=0.08')
+  .to(urg,{opacity:1,y:0,duration:0.3/speed,ease:'premium'},'+=0.05')
+  .to(ch,{opacity:1,duration:0.3/speed,ease:'premium'},'+=0.05')
+  .to(bf,{boxShadow:'0 0 80px var(--color-glow)',duration:1.2/speed,ease:'sine.inOut',repeat:-1,yoyo:true},'+=0.1');
+window.__timelines=window.__timelines||{};window.__timelines['ai-social-cta-a']=tl;
+</script>
+</body></html>

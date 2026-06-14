@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --video-width: 1080px; --video-height: 1080px;
+  --color-accent: #c0c0c0; --color-bg: #111111;
+  --color-secondary: #808080; --color-glow: rgba(192,192,192,0.2);
+  --color-text: #ffffff; --color-muted: rgba(255,255,255,0.65);
+  --motion-speed: 0.8; --motion-stagger: 0.1;
+  --safe-zone-top: 60px; --safe-zone-bottom: 60px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:var(--video-width); height:var(--video-height); background:var(--color-bg); overflow:hidden; position:relative; }
+.vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.7) 100%); z-index:1; }
+.content { position:relative; z-index:10; display:flex; flex-direction:column; justify-content:center; padding:var(--safe-zone-top) 80px var(--safe-zone-bottom); gap:36px; height:100%; }
+.broadcast-bar { height:4px; background:var(--color-accent); width:0; box-shadow:0 0 20px var(--color-glow); margin-bottom:8px; }
+.section-label { font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--color-accent); letter-spacing:0.35em; text-transform:uppercase; opacity:0; }
+.headline { font-family:'Bebas Neue',sans-serif; font-size:80px; line-height:0.95; color:var(--color-text); opacity:0; transform:translateY(40px); }
+.storylines { display:flex; flex-direction:column; gap:24px; }
+.storyline { display:flex; gap:20px; align-items:flex-start; background:rgba(255,255,255,0.04); border-left:3px solid var(--color-accent); padding:20px 24px; border-radius:0 6px 6px 0; opacity:0; transform:translateX(-30px); }
+.sl-num { font-family:'Bebas Neue',sans-serif; font-size:36px; color:var(--color-accent); line-height:1; flex-shrink:0; }
+.sl-text { font-family:'Space Grotesk',sans-serif; font-size:22px; color:var(--color-text); line-height:1.4; }
+</style>
+</head>
+<body>
+<div class="vignette"></div>
+<div class="content">
+  <div class="broadcast-bar" id="bar"></div>
+  <div class="section-label" id="sl">THE STORY SO FAR</div>
+  <div class="headline" id="hl" data-placeholder="problem_headline">Key Storylines Heading In</div>
+  <div class="storylines">
+    <div class="storyline" id="s1"><div class="sl-num">01</div><div class="sl-text" data-placeholder="problem_1">Both teams in strong form heading into this clash</div></div>
+    <div class="storyline" id="s2"><div class="sl-num">02</div><div class="sl-text" data-placeholder="problem_2">Key injuries could decide the outcome tonight</div></div>
+    <div class="storyline" id="s3"><div class="sl-num">03</div><div class="sl-text" data-placeholder="problem_3">Head-to-head record is almost perfectly even</div></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/MorphSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrambleTextPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/CustomEase.min.js"></script>
+<script>
+gsap.registerPlugin(SplitText, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin, CustomEase);
+CustomEase.create('premium','M0,0 C0.16,1 0.3,1 1,1');
+CustomEase.create('punchIn','M0,0 C0.5,-0.5 0.7,1.5 1,1');
+const speed=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-speed'))||1.0;
+const stagger=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-stagger'))||0.1;
+const bar=document.getElementById('bar'),sl=document.getElementById('sl'),hl=document.getElementById('hl');
+const sls=[document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3')];
+gsap.set([sl,hl,...sls],{opacity:0}); gsap.set(hl,{y:40}); gsap.set(sls,{x:-30}); gsap.set(bar,{width:0});
+const tl=gsap.timeline({paused:true});
+tl.to(bar,{width:'100%',duration:0.6/speed,ease:'power2.inOut'})
+  .to(sl,{opacity:1,duration:0.4/speed,ease:'premium'},'+=0.1')
+  .to(hl,{opacity:1,y:0,duration:0.6/speed,ease:'punchIn'},'+=0.1')
+  .to(sls,{opacity:1,x:0,duration:0.5/speed,ease:'premium',stagger:stagger},'+=0.1');
+window.__timelines=window.__timelines||{};window.__timelines['fifa-sports-problem-b']=tl;
+</script>
+</body></html>
+
