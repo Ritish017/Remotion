@@ -43,3 +43,6 @@ next-env.d.ts
 # python / backend
 __pycache__/
 jobs/
+
+# MCP config (contains access tokens)
+.mcp.json

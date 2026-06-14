@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useCampaigns, createCampaign, createEpisodeStubs } from '@/hooks/useCampaign'
+import { useCampaigns, createCampaign } from '@/hooks/useCampaign'
 import { CAMPAIGN_TYPES, CAMPAIGN_STATUS_COLORS, SOCIAL_PLATFORMS, ACCENT_COLORS } from '@/lib/constants'
 import type { Campaign, CampaignType } from '@/lib/types'
 
@@ -141,7 +141,24 @@ function CreateCampaignModal({ open, onClose, onCreated }: { open: boolean; onCl
         status: 'planning',
       })
       if (form.episode_count > 0 && form.start_date) {
-        await createEpisodeStubs(campaign.id, form.episode_count, form.start_date)
+        const res = await fetch('/api/campaigns/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            name: form.name,
+            type: form.type,
+            description: form.description,
+            brandVoice: form.brand_voice,
+            targetAudience: form.target_audience,
+            startDate: form.start_date,
+            episodeCount: form.episode_count
+          })
+        })
+        if (!res.ok) {
+          const errData = await res.json()
+          throw new Error(errData.error || 'Failed to plan campaign')
+        }
       }
       onCreated()
       onClose()
@@ -323,7 +340,7 @@ function CreateCampaignModal({ open, onClose, onCreated }: { open: boolean; onCl
                 disabled={loading || form.target_platforms.length === 0}
                 className="flex-1 bg-accent-ai hover:bg-accent-ai/90 text-black"
               >
-                {loading ? 'Creating...' : 'Create Campaign'}
+                {loading ? 'Planning Campaign...' : 'Create Campaign'}
               </Button>
             </div>
           </div>

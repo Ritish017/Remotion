@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Brain, Zap, Trophy, Calendar, ChevronRight, Plus, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useCampaign, useCampaignEpisodes } from '@/hooks/useCampaign'
 import { CAMPAIGN_TYPES, EPISODE_STATUS_CONFIG, SOCIAL_PLATFORMS } from '@/lib/constants'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { BrainPanel } from '@/components/brain/BrainPanel'
 import type { Episode } from '@/lib/types'
 
 const TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
@@ -138,6 +139,7 @@ function CampaignCalendar({ episodes, accentColor, campaignId }: { episodes: Epi
 export default function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'overview' | 'brain'>('overview')
   const { campaign, isLoading: campLoading } = useCampaign(id)
   const { episodes, isLoading: epsLoading } = useCampaignEpisodes(id)
 
@@ -267,8 +269,33 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
         </CardContent>
       </Card>
 
-      {/* Calendar + Episode list side by side on large screens */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+      {/* Tab navigation */}
+      <div className="flex gap-1 p-1 bg-bg-surface rounded-xl border border-border-DEFAULT w-fit">
+        {(['overview', 'brain'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all capitalize flex items-center gap-1.5 ${
+              activeTab === tab
+                ? 'text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={activeTab === tab ? { background: campaign.accent_color + '25', color: campaign.accent_color } : {}}
+          >
+            {tab === 'brain' && <Brain size={13} />}
+            {tab === 'overview' && <Calendar size={13} />}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Brain panel */}
+      {activeTab === 'brain' && (
+        <BrainPanel campaignId={id} accentColor={campaign.accent_color} />
+      )}
+
+      {/* Overview — Calendar + Episode list side by side on large screens */}
+      {activeTab === 'overview' && <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Calendar */}
         <Card className="bg-bg-surface border-border-DEFAULT xl:col-span-2">
           <CardContent className="p-4">
@@ -323,7 +350,7 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
             )}
           </CardContent>
         </Card>
-      </div>
+      </div>}
     </div>
   )
 }

@@ -8,26 +8,29 @@ import { NarrativeOutput as NarrativeOutputType, Job } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2 } from 'lucide-react'
-import { getJobs, downloadJob, generateTutorial, generateSocial, generateSportsPreview, generateBatch, importJobAsTemplate } from '@/lib/api'
+import { Download, Loader2, Film, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
+import { generateTutorial, generateSocial, generateSportsPreview, generateBatch } from '@/lib/api'
 
 export default function GeneratePage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [narrative, setNarrative] = useState<NarrativeOutputType | null>(null)
   const [lastRequest, setLastRequest] = useState<any>(null)
-  const [jobs, setJobs] = useState<Job[]>([])
+  const [jobs, setJobs] = useState<any[]>([])
+  const [inProgressTotal, setInProgressTotal] = useState(0)
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const data = await getJobs()
+        const res = await fetch('/api/catalyst/jobs')
+        const data = await res.json()
         setJobs(Array.isArray(data?.jobs) ? data.jobs : [])
+        setInProgressTotal(data?.in_progress_total || 0)
       } catch (e) {
         console.error('Failed to fetch jobs', e)
       }
     }
     fetchJobs()
-    const interval = setInterval(fetchJobs, 5000)
+    const interval = setInterval(fetchJobs, 15000)
     return () => clearInterval(interval)
   }, [])
 
@@ -105,46 +108,92 @@ export default function GeneratePage() {
           <Card className="rounded-xl border-border-DEFAULT bg-bg-surface overflow-hidden">
             <CardHeader className="pb-3 border-b border-border-DEFAULT/50">
               <CardTitle className="text-base font-bold flex items-center justify-between">
-                Recent Jobs
-                <Badge variant="outline" className="font-mono bg-bg-surface2 text-muted-foreground border-border-strong text-[10px]">
-                  Live
-                </Badge>
+                Nova Reel Jobs
+                <div className="flex items-center gap-2">
+                  {inProgressTotal > 0 && (
+                    <Badge variant="outline" className="font-mono text-accent-brand border-accent-brand/30 bg-accent-brand/10 text-[10px] gap-1">
+                      <Loader2 size={8} className="animate-spin" /> {inProgressTotal} rendering
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="font-mono bg-bg-surface2 text-muted-foreground border-border-strong text-[10px]">
+                    Live
+                  </Badge>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="max-h-[300px] overflow-y-auto divide-y divide-border-DEFAULT/50">
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-border-DEFAULT/50">
                 {jobs.length === 0 ? (
                   <div className="p-6 text-center text-muted-foreground font-mono text-sm">
-                    No recent jobs
+                    No video jobs yet
                   </div>
                 ) : (
-                  jobs.map(job => (
-                    <div key={job.job_id} className="p-4 flex items-center justify-between hover:bg-bg-surface2/50 transition-colors">
-                      <div>
-                        <div className="font-mono text-xs font-bold truncate w-32">{job.job_id.substring(0, 8)}...</div>
-                        <div className="font-mono text-[10px] text-muted-foreground mt-1">
-                          {new Date(job.created_at).toLocaleTimeString()}
+                  jobs.map((job: any) => {
+                    const pct = job.segments_total > 0 ? Math.round((job.segments_done / job.segments_total) * 100) : 0
+                    return (
+                      <div key={job.job_id} className="p-4 space-y-2 hover:bg-bg-surface2/50 transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium truncate">{job.topic || 'Untitled'}</p>
+                              {job.orphaned && (
+                                <Badge variant="outline" className="text-[9px] font-mono text-yellow-500 border-yellow-500/30 bg-yellow-500/10 shrink-0">orphan</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="font-mono text-[10px] text-muted-foreground">{job.job_id.substring(0, 8)}…</span>
+                              {!job.orphaned && <><span className="text-[10px] text-muted-foreground">·</span>
+                              <span className="text-[10px] text-muted-foreground">{job.total_duration}s · {job.palette}</span></>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {job.status === 'done' && <CheckCircle2 size={14} className="text-accent-ai" />}
+                            {job.status === 'rendering' && <Loader2 size={14} className="animate-spin text-accent-brand" />}
+                            {job.status === 'error' && <AlertCircle size={14} className="text-destructive" />}
+                            {job.status === 'unknown' && <Clock size={14} className="text-muted-foreground" />}
+                            <Badge variant="outline" className={`font-mono text-[10px] uppercase tracking-widest ${
+                              job.status === 'done' ? 'text-accent-ai border-accent-ai/30 bg-accent-ai/10' :
+                              job.status === 'rendering' ? 'text-accent-brand border-accent-brand/30 bg-accent-brand/10' :
+                              job.status === 'error' ? 'text-destructive border-destructive/30 bg-destructive/10' :
+                              'text-muted-foreground border-border-strong bg-transparent'
+                            }`}>
+                              {job.status}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className={`font-mono text-[10px] uppercase tracking-widest ${
-                          job.status === 'done' ? 'text-accent-ai border-accent-ai/30 bg-accent-ai/10' :
-                          job.status === 'rendering' ? 'text-accent-brand border-accent-brand/30 bg-accent-brand/10' :
-                          job.status === 'error' ? 'text-destructive border-destructive/30 bg-destructive/10' :
-                          'text-muted-foreground border-border-strong bg-transparent'
-                        }`}>
-                          {job.status}
-                        </Badge>
+                        {job.status === 'rendering' && (
+                          <div className="space-y-1">
+                            <div className="w-full bg-bg-surface rounded-full h-1 overflow-hidden">
+                              <div className="h-full bg-accent-brand transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[10px] text-muted-foreground font-mono">{job.progress}</span>
+                              <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {Array.from({ length: job.segments_total }).map((_: any, i: number) => (
+                                <div key={i} className={`flex-1 h-1 rounded-full ${i < job.segments_done ? 'bg-accent-brand' : 'bg-border-DEFAULT'}`} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {job.status === 'done' && (
-                          <a href={downloadJob(job.job_id)} target="_blank" rel="noreferrer">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                              <Download size={14} />
-                            </Button>
-                          </a>
+                          <div className="flex gap-2">
+                            <a href={`/api/catalyst/download/${job.job_id}?segment=0`} download
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border-DEFAULT text-muted-foreground hover:text-foreground transition-colors">
+                              <Download size={11} /> Seg 1
+                            </a>
+                            {Array.from({ length: job.segments_total - 1 }).map((_: any, i: number) => (
+                              <a key={i+1} href={`/api/catalyst/download/${job.job_id}?segment=${i+1}`} download
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border-DEFAULT text-muted-foreground hover:text-foreground transition-colors">
+                                <Download size={11} /> Seg {i+2}
+                              </a>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </CardContent>

@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Search, FileText, Video, Send, BarChart3, Clock, Flame, Loader2, Copy, Check, Download, Play, RotateCcw, AtSign, Play as Play2, Globe, Briefcase, AlertTriangle, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,10 @@ import { HashtagPill } from '@/components/shared/HashtagPill'
 import { CopyButton } from '@/components/shared/CopyButton'
 import { ApprovalGate } from '@/components/shared/ApprovalGate'
 import { SCRIPT_AGENT_PROMPT, VIRALITY_AGENT_PROMPT, PLATFORM_COLORS, SOCIAL_PLATFORMS } from '@/lib/constants'
-import { getPreviewUrl, getDownloadUrl, pollJobStatus } from '@/lib/catalyst'
+// Use direct API paths — never route through the Python CATALYST backend for video jobs
+const videoPreviewUrl = (jobId: string) => `/api/catalyst/preview/${jobId}`
+const videoDownloadUrl = (jobId: string, segment = 0) => `/api/catalyst/download/${jobId}?segment=${segment}`
+const videoStatusUrl = (jobId: string) => `/api/catalyst/status/${jobId}`
 import type { AgentStep, ResearchBrief, ScriptData, ViralityScore } from '@/lib/types'
 
 // ─── Tab Navigation ──────────────────────────────────────────────────────────
@@ -30,14 +33,15 @@ const TABS = [
 ]
 
 // ─── Research Panel ───────────────────────────────────────────────────────────
-function ResearchPanel({ episodeId, campaignId, campaignType, research, onSaved }: {
+function ResearchPanel({ episodeId, campaignId, campaignType, research, topic: initialTopic, onSaved }: {
   episodeId: string
   campaignId: string
   campaignType: string
   research: ResearchBrief | Record<string, never>
+  topic: string
   onSaved: () => void
 }) {
-  const [topic, setTopic] = useState((research as ResearchBrief).topic_summary ? '' : '')
+  const [topic, setTopic] = useState(initialTopic)
   const [steps, setSteps] = useState<AgentStep[]>([
     { label: 'Searching YouTube for top videos', status: 'pending' },
     { label: 'Analysing competitor patterns', status: 'pending' },
@@ -139,17 +143,21 @@ function ResearchPanel({ episodeId, campaignId, campaignType, research, onSaved 
                   <div
                     className="h-full rounded-full"
                     style={{
-                      width: `${result.trending_score}%`,
-                      background: result.trending_score > 70 ? '#00c9a7' : result.trending_score > 40 ? '#f5c518' : '#f0522a'
+                      width: `${result.trending_score ?? 0}%`,
+                      background: (result.trending_score ?? 0) > 70 ? '#00c9a7' : (result.trending_score ?? 0) > 40 ? '#f5c518' : '#f0522a'
                     }}
                   />
                 </div>
-                <span className="font-mono text-sm font-bold">{result.trending_score}/100</span>
-                <Badge variant="outline" className="text-[10px] border-border-DEFAULT bg-transparent capitalize">
-                  {result.trend_direction}
-                </Badge>
+                <span className="font-mono text-sm font-bold">{result.trending_score ?? 0}/100</span>
+                {result.trend_direction && (
+                  <Badge variant="outline" className="text-[10px] border-border-DEFAULT bg-transparent capitalize">
+                    {result.trend_direction}
+                  </Badge>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground italic">{result.competitor_insights}</p>
+              {result.competitor_insights && (
+                <p className="text-xs text-muted-foreground italic">{result.competitor_insights}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -163,7 +171,7 @@ function ResearchPanel({ episodeId, campaignId, campaignType, research, onSaved 
             </CardHeader>
             <CardContent>
               <p className="text-sm">{result.unique_angle}</p>
-              {result.what_to_avoid.length > 0 && (
+              {result.what_to_avoid && Array.isArray(result.what_to_avoid) && result.what_to_avoid.length > 0 && (
                 <div className="mt-3">
                   <p className="text-xs text-muted-foreground mb-2">Avoid:</p>
                   <ul className="space-y-1">
@@ -185,16 +193,16 @@ function ResearchPanel({ episodeId, campaignId, campaignType, research, onSaved 
               <CardTitle className="text-sm">Hook Angles</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {result.hook_angles.map((angle, i) => (
+              {result.hook_angles && Array.isArray(result.hook_angles) && result.hook_angles.map((angle, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-bg-surface border border-border-DEFAULT">
                   <div
                     className="font-mono text-xs font-bold px-2 py-0.5 rounded shrink-0 mt-0.5"
                     style={{
-                      background: `${angle.predicted_virality > 70 ? '#00c9a7' : '#6c47ff'}20`,
-                      color: angle.predicted_virality > 70 ? '#00c9a7' : '#6c47ff'
+                      background: `${(angle.predicted_virality ?? 0) > 70 ? '#00c9a7' : '#6c47ff'}20`,
+                      color: (angle.predicted_virality ?? 0) > 70 ? '#00c9a7' : '#6c47ff'
                     }}
                   >
-                    {angle.predicted_virality}
+                    {angle.predicted_virality ?? 0}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{angle.angle}</p>
@@ -226,14 +234,16 @@ function ResearchPanel({ episodeId, campaignId, campaignType, research, onSaved 
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {(result.hashtags[selectedPlatform] || []).map(tag => (
-                  <HashtagPill key={tag} tag={tag} />
-                ))}
-              </div>
+              {result.hashtags && result.hashtags[selectedPlatform] && Array.isArray(result.hashtags[selectedPlatform]) && (
+                <div className="flex flex-wrap gap-2">
+                  {result.hashtags[selectedPlatform].map(tag => (
+                    <HashtagPill key={tag} tag={tag} />
+                  ))}
+                </div>
+              )}
               <div className="mt-3 flex justify-end">
                 <CopyButton
-                  text={(result.hashtags[selectedPlatform] || []).join(' ')}
+                  text={((result.hashtags && result.hashtags[selectedPlatform]) || []).join(' ')}
                   label="Copy All"
                 />
               </div>
@@ -246,13 +256,15 @@ function ResearchPanel({ episodeId, campaignId, campaignType, research, onSaved 
 }
 
 // ─── Script Panel ─────────────────────────────────────────────────────────────
-function ScriptPanel({ episodeId, topic, research, script: savedScript, onSaved }: {
+function ScriptPanel({ episodeId, topic, episode, research, script: savedScript, onSaved }: {
   episodeId: string
   topic?: string
+  episode: any
   research: ResearchBrief | Record<string, never>
-  script: ScriptData | Record<string, never>
+  script: any | Record<string, never>
   onSaved: () => void
 }) {
+  const [feedback, setFeedback] = useState('')
   const [steps, setSteps] = useState<AgentStep[]>([
     { label: 'Analysing research brief', status: 'pending' },
     { label: 'Crafting viral hook (first 5 seconds)', status: 'pending' },
@@ -261,13 +273,13 @@ function ScriptPanel({ episodeId, topic, research, script: savedScript, onSaved 
     { label: 'Generating platform-specific copy', status: 'pending' },
   ])
   const [running, setRunning] = useState(false)
-  const [script, setScript] = useState<ScriptData | null>(
-    Object.keys(savedScript).length > 0 ? savedScript as ScriptData : null
+  const [script, setScript] = useState<any | null>(
+    Object.keys(savedScript).length > 0 ? savedScript : null
   )
   const [tone, setTone] = useState('Energetic')
   const [platform, setPlatform] = useState('youtube-long')
   const [duration, setDuration] = useState('60')
-  const [activeSection, setActiveSection] = useState<'hook' | 'main' | 'cta' | 'meta'>('hook')
+  const [activeSection, setActiveSection] = useState<'hook' | 'main' | 'voiceover' | 'cta' | 'meta'>('hook')
 
   const updateStep = (i: number, status: AgentStep['status']) => {
     setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status } : s))
@@ -290,7 +302,7 @@ function ScriptPanel({ episodeId, topic, research, script: savedScript, onSaved 
           system: SCRIPT_AGENT_PROMPT,
           messages: [{
             role: 'user',
-            content: `Topic: "${topic || 'Unknown topic'}"\nTone: ${tone}\nTarget platform: ${platform}\nTarget duration: ${duration} seconds\n\nResearch brief:\n${JSON.stringify(research, null, 2)}`
+            content: `Topic: "${topic || 'Unknown topic'}"\nTone: ${tone}\nTarget platform: ${platform}\nTarget duration: ${duration} seconds\n\nStorytelling Prompt:\n${episode?.storytelling_prompt || 'None'}\n\nFeedback/Adjustments from user:\n${feedback || 'None'}\n\nResearch brief:\n${JSON.stringify(research, null, 2)}`
           }],
         }),
       })
@@ -323,7 +335,8 @@ function ScriptPanel({ episodeId, topic, research, script: savedScript, onSaved 
 
   const sectionTabs = [
     { id: 'hook' as const, label: 'Hook' },
-    { id: 'main' as const, label: 'Script' },
+    { id: 'main' as const, label: 'Content Map' },
+    { id: 'voiceover' as const, label: 'Voiceover Script' },
     { id: 'cta' as const, label: 'CTA' },
     { id: 'meta' as const, label: 'Distribution Copy' },
   ]
@@ -374,6 +387,16 @@ function ScriptPanel({ episodeId, topic, research, script: savedScript, onSaved 
               </select>
             </div>
           </div>
+          <div className="space-y-2 mt-4 mb-4">
+             <Label className="text-xs">Feedback / Adjustments (Optional)</Label>
+             <Textarea
+               placeholder="e.g. Make it sound more urgent, or add a tip about async..."
+               value={feedback}
+               onChange={e => setFeedback(e.target.value)}
+               className="bg-bg-surface border-border-DEFAULT text-sm"
+               rows={2}
+             />
+          </div>
           <Button
             onClick={runScript}
             disabled={running || !topic}
@@ -411,66 +434,86 @@ function ScriptPanel({ episodeId, topic, research, script: savedScript, onSaved 
             ))}
           </div>
 
-          {activeSection === 'hook' && (
+          {activeSection === 'hook' && script.content_map && (
             <Card className="bg-bg-surface2 border-border-DEFAULT">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flame size={16} className="text-accent-social" />
-                    <span className="text-sm font-semibold">Hook ({script.hook.duration_seconds}s)</span>
+                    <span className="text-sm font-semibold">Hook</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-accent-ai">{script.hook.virality_score}/100</span>
-                    <CopyButton text={script.hook.text} />
+                    <span className="font-mono text-sm font-bold text-accent-ai">{script.content_map.virality_score}/100</span>
+                    <CopyButton text={script.content_map.hook?.headline} />
                   </div>
                 </div>
                 <div className="p-4 bg-bg-surface rounded-lg border border-border-DEFAULT">
-                  <p className="text-base font-semibold leading-relaxed">{script.hook.text}</p>
+                  <p className="text-base font-semibold leading-relaxed">{script.content_map.hook?.headline}</p>
+                  <p className="text-sm text-muted-foreground mt-2">{script.content_map.hook?.subtext}</p>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {activeSection === 'main' && (
+          {activeSection === 'main' && script.content_map && (
             <Card className="bg-bg-surface2 border-border-DEFAULT">
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">Full Script</span>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                    <span>{script.metadata.word_count} words</span>
-                    <span>·</span>
-                    <span>~{Math.round(script.metadata.estimated_duration_seconds)}s</span>
-                  </div>
+                  <span className="text-sm font-semibold">Content Map</span>
                 </div>
-                {script.main_content.sections.map((section, i) => (
-                  <div key={i} className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{section.title}</p>
-                    <p className="text-sm leading-relaxed">{section.text}</p>
-                  </div>
-                ))}
-                <div className="pt-2 border-t border-border-DEFAULT">
-                  <CopyButton text={script.main_content.text} label="Copy Full Script" />
+                
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Problem</p>
+                  <p className="text-sm leading-relaxed font-semibold">{script.content_map.problem?.headline}</p>
+                  <ul className="list-disc pl-4 mt-2 space-y-1">
+                    {script.content_map.problem?.bullets?.map((b: string, i: number) => (
+                      <li key={i} className="text-sm text-muted-foreground">{b}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="space-y-1 pt-4 border-t border-border-DEFAULT">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Solution</p>
+                  <p className="text-sm leading-relaxed font-semibold">{script.content_map.solution?.headline}</p>
+                  <ul className="list-disc pl-4 mt-2 space-y-1">
+                    {script.content_map.solution?.key_points?.map((b: string, i: number) => (
+                      <li key={i} className="text-sm text-muted-foreground">{b}</li>
+                    ))}
+                  </ul>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {activeSection === 'cta' && (
+          {activeSection === 'voiceover' && (
+            <Card className="bg-bg-surface2 border-border-DEFAULT">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">Voiceover Script</span>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                    <span>{script.metadata?.word_count} words</span>
+                    <span>·</span>
+                    <span>~{Math.round(script.metadata?.estimated_duration_seconds || 0)}s</span>
+                  </div>
+                </div>
+                <div className="p-4 bg-bg-surface rounded-lg border border-border-DEFAULT whitespace-pre-wrap text-sm leading-relaxed">
+                  {script.voiceover_script}
+                </div>
+                <div className="pt-2 border-t border-border-DEFAULT">
+                  <CopyButton text={script.voiceover_script} label="Copy Voiceover Script" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'cta' && script.content_map && (
             <Card className="bg-bg-surface2 border-border-DEFAULT">
               <CardContent className="p-4 space-y-3">
-                <p className="text-sm font-semibold">Platform CTAs</p>
-                {Object.entries(script.cta.platform_variants).map(([platform, cta]) => (
-                  <div key={platform} className="flex items-start gap-3 p-3 rounded-lg bg-bg-surface border border-border-DEFAULT">
-                    <span
-                      className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded shrink-0"
-                      style={{ color: PLATFORM_COLORS[platform], background: `${PLATFORM_COLORS[platform]}20` }}
-                    >
-                      {platform === 'x' ? 'X' : platform}
-                    </span>
-                    <p className="text-sm flex-1">{cta}</p>
-                    <CopyButton text={cta} label="" size="sm" />
-                  </div>
-                ))}
+                <p className="text-sm font-semibold">CTA</p>
+                <div className="p-4 bg-bg-surface rounded-lg border border-border-DEFAULT">
+                  <p className="text-sm">{script.content_map.cta?.text}</p>
+                  <p className="text-xs text-muted-foreground mt-2 italic">Urgency: {script.content_map.cta?.urgency}</p>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -546,7 +589,7 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
   episodeId: string
   campaignType: string
   topic?: string
-  script: ScriptData | Record<string, never>
+  script: any | Record<string, never>
   jobId?: string
   videoUrl?: string
   onSaved: () => void
@@ -554,24 +597,67 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
   const [generating, setGenerating] = useState(false)
   const [currentJobId, setCurrentJobId] = useState(jobId || '')
   const [status, setStatus] = useState<'idle' | 'queued' | 'rendering' | 'done' | 'error'>('idle')
+  const [progress, setProgress] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const [palette, setPalette] = useState('tutorial-neon')
   const [motion, setMotion] = useState('kinetic')
+  const [duration, setDuration] = useState('60')
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const previewUrl = currentJobId ? getPreviewUrl(currentJobId) : undefined
-  const downloadUrl = currentJobId ? getDownloadUrl(currentJobId) : undefined
+  const previewUrl = currentJobId ? videoPreviewUrl(currentJobId) : undefined
+  const downloadUrl = currentJobId ? videoDownloadUrl(currentJobId) : undefined
+
+  const startPolling = useCallback((jid: string) => {
+    const poll = async () => {
+      try {
+        const res = await fetch(videoStatusUrl(jid))
+        const s = await res.json()
+        if (s.status === 'done') {
+          setStatus('done')
+          setProgress('')
+          await updateEpisode(episodeId, { video_job_id: jid, status: 'video_generated' })
+          onSaved()
+        } else if (s.status === 'error') {
+          setStatus('error')
+          setErrorMsg(s.message || 'Render failed')
+        } else {
+          setProgress(s.progress || 'Rendering…')
+          pollRef.current = setTimeout(poll, 5000)
+        }
+      } catch {
+        pollRef.current = setTimeout(poll, 10000)
+      }
+    }
+    poll()
+  }, [episodeId, onSaved])
+
+  // Auto-resume if episode already has a job in progress
+  useEffect(() => {
+    if (jobId && !videoUrl) {
+      setStatus('rendering')
+      setProgress('Checking status…')
+      startPolling(jobId)
+    }
+    return () => { if (pollRef.current) clearTimeout(pollRef.current) }
+  }, [jobId, videoUrl, startPolling])
 
   const generate = async () => {
     if (!topic) return
+    if (pollRef.current) clearTimeout(pollRef.current)
     setGenerating(true)
     setStatus('queued')
+    setErrorMsg('')
+    setProgress('')
     try {
-      const scriptData = Object.keys(script).length > 0 ? script as ScriptData : null
+      const scriptData = Object.keys(script).length > 0 ? script : null
+      const contentMap = scriptData?.content_map || undefined
+
       const body = campaignType === 'football'
-        ? { home: topic, away: 'TBD', competition: 'FIFA World Cup 2026', palette }
+        ? { home: topic, away: 'TBD', competition: 'FIFA World Cup 2026', palette, content_map: contentMap }
         : campaignType === 'social-branding'
-        ? { brief: scriptData?.hook?.text || topic, platform: 'reels', palette }
-        : { topic: scriptData?.hook?.text || topic, duration: 60, palette, motion_preset: motion }
+        ? { brief: scriptData?.content_map?.hook?.headline || topic, platform: 'reels', palette, content_map: contentMap }
+        : { topic: scriptData?.content_map?.hook?.headline || topic, duration: parseInt(duration), palette, motion_preset: motion, content_map: contentMap }
 
       const endpoint = campaignType === 'football'
         ? '/api/catalyst/generate/sports/preview'
@@ -585,41 +671,47 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
         body: JSON.stringify(body),
       })
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       const newJobId = data.job_id
-
       if (!newJobId) throw new Error('No job ID returned')
+
       setCurrentJobId(newJobId)
       setStatus('rendering')
-
-      // Poll for completion
-      const poll = async () => {
-        const s = await pollJobStatus(newJobId)
-        if (s.status === 'done') {
-          setStatus('done')
-          await updateEpisode(episodeId, {
-            video_job_id: newJobId,
-            status: 'video_generated',
-          })
-          onSaved()
-        } else if (s.status === 'error') {
+      setProgress('0 / 4 segments queued')
+      startPolling(newJobId)
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      if (msg.includes('Too many requests')) {
+        // Check how many orphaned jobs are blocking
+        try {
+          const jobsRes = await fetch('/api/catalyst/jobs')
+          const jobsData = await jobsRes.json()
+          const blocking = jobsData.in_progress_total || 0
           setStatus('error')
-        } else {
-          setTimeout(poll, 2000)
+          setErrorMsg(`Nova Reel is busy — ${blocking} segment${blocking !== 1 ? 's' : ''} still rendering from previous runs. Check the Generate page for status. Try again in ~10 min.`)
+        } catch {
+          setStatus('error')
+          setErrorMsg('Nova Reel is busy with a previous job. Check the Generate page for status. Try again in ~10 min.')
         }
+      } else {
+        setStatus('error')
+        setErrorMsg(msg)
       }
-      poll()
-    } catch (e) {
-      setStatus('error')
     } finally {
       setGenerating(false)
     }
   }
 
+  const segmentMatch = progress.match(/(\d+)\/(\d+)/)
+  const segmentsDone = segmentMatch ? parseInt(segmentMatch[1]) : 0
+  const segmentsTotal = segmentMatch ? parseInt(segmentMatch[2]) : 4
+  const pct = segmentsTotal > 0 ? Math.round((segmentsDone / segmentsTotal) * 100) : 0
+
   return (
     <div className="space-y-6">
       <Card className="bg-bg-surface2 border-border-DEFAULT">
         <CardContent className="p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs mb-1 block">Palette</Label>
               <select value={palette} onChange={e => setPalette(e.target.value)} className="w-full h-9 bg-bg-surface border border-border-DEFAULT rounded-md text-sm px-2">
@@ -636,22 +728,57 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
                 ))}
               </select>
             </div>
+            <div>
+              <Label className="text-xs mb-1 block">Duration</Label>
+              <select value={duration} onChange={e => setDuration(e.target.value)} className="w-full h-9 bg-bg-surface border border-border-DEFAULT rounded-md text-sm px-2">
+                <option value="15">15s</option>
+                <option value="30">30s</option>
+                <option value="45">45s</option>
+                <option value="60">60s</option>
+              </select>
+            </div>
           </div>
+
           <Button
             onClick={generate}
             disabled={generating || !topic || status === 'rendering'}
             className="w-full bg-accent-brand hover:bg-accent-brand/90 gap-2"
           >
-            {generating || status === 'rendering'
-              ? <><Loader2 size={14} className="animate-spin" /> {status === 'rendering' ? 'Rendering...' : 'Queuing...'}</>
+            {generating
+              ? <><Loader2 size={14} className="animate-spin" /> Queuing…</>
+              : status === 'rendering'
+              ? <><Loader2 size={14} className="animate-spin" /> Rendering — {progress || 'Starting…'}</>
               : <><Video size={14} /> Generate Video</>
             }
           </Button>
+
           {status === 'rendering' && (
-            <p className="text-xs text-center text-muted-foreground font-mono">Job: {currentJobId} · polling every 2s...</p>
+            <div className="space-y-1.5">
+              <div className="w-full bg-bg-surface rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="h-full bg-accent-brand transition-all duration-500"
+                  style={{ width: segmentsTotal > 0 ? `${pct}%` : '15%' }}
+                />
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-[11px] text-muted-foreground font-mono">{progress}</p>
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  {currentJobId.slice(0, 8)}… · Nova Reel ~5–10 min/segment
+                </p>
+              </div>
+            </div>
           )}
+
           {status === 'error' && (
-            <p className="text-xs text-center text-red-400">Generation failed. Check CATALYST backend is running.</p>
+            <div className="rounded-md bg-red-950/30 border border-red-900/40 p-3">
+              <p className="text-xs text-red-400 font-medium mb-1">Generation failed</p>
+              <p className="text-[11px] text-red-300/70 font-mono break-all">{errorMsg}</p>
+              {errorMsg.includes('Too many requests') && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Nova Reel allows 1 job at a time. Wait for the previous job to finish, then try again.
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -691,6 +818,31 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
               </div>
               {currentJobId && <p className="font-mono text-[11px] text-muted-foreground">Job ID: {currentJobId}</p>}
             </div>
+          ) : status === 'rendering' ? (
+            <div className="aspect-video bg-bg-surface rounded-xl border border-border-DEFAULT flex items-center justify-center">
+              <div className="text-center space-y-4 px-8">
+                <div className="relative mx-auto w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-2 border-accent-brand/20" />
+                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent-brand animate-spin" />
+                  <Video size={24} className="absolute inset-0 m-auto text-accent-brand opacity-60" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Nova Reel generating…</p>
+                  <p className="text-xs text-muted-foreground">{progress || 'Segments queued, rendering in background'}</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">Each 6s clip takes ~5–10 min. This page auto-updates.</p>
+                </div>
+                {segmentsTotal > 0 && (
+                  <div className="flex justify-center gap-2">
+                    {Array.from({ length: segmentsTotal }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-2 h-2 rounded-full transition-colors ${i < segmentsDone ? 'bg-accent-brand' : 'bg-bg-surface2 border border-border-DEFAULT'}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="aspect-video bg-bg-surface rounded-xl border border-border-DEFAULT flex items-center justify-center">
               <div className="text-center text-muted-foreground">
@@ -727,27 +879,27 @@ function DistributionPanel({ episodeId, posts, script, research, videoJobId, onS
     {
       id: 'instagram',
       icon: AtSign,
-      caption: scriptData?.cta.platform_variants.instagram || '',
-      hashtags: researchData?.hashtags.instagram || [],
+      caption: scriptData?.cta?.platform_variants?.instagram || '',
+      hashtags: researchData?.hashtags?.instagram || [],
     },
     {
       id: 'youtube',
       icon: Play2,
-      caption: scriptData?.metadata.youtube_description || '',
-      hashtags: researchData?.hashtags.youtube || [],
-      title: scriptData?.metadata.youtube_title,
+      caption: scriptData?.metadata?.youtube_description || '',
+      hashtags: researchData?.hashtags?.youtube || [],
+      title: scriptData?.metadata?.youtube_title,
     },
     {
       id: 'x',
       icon: Globe,
-      caption: scriptData?.cta.platform_variants.x || '',
-      hashtags: researchData?.hashtags.x || [],
+      caption: scriptData?.cta?.platform_variants?.x || '',
+      hashtags: researchData?.hashtags?.x || [],
     },
     {
       id: 'linkedin',
       icon: Briefcase,
-      caption: scriptData?.metadata.linkedin_post || '',
-      hashtags: researchData?.hashtags.linkedin || [],
+      caption: scriptData?.metadata?.linkedin_post || '',
+      hashtags: researchData?.hashtags?.linkedin || [],
     },
   ]
 
@@ -755,7 +907,7 @@ function DistributionPanel({ episodeId, posts, script, research, videoJobId, onS
     if (!videoJobId) return
     setPosting(true)
     try {
-      const videoUrl = getDownloadUrl(videoJobId)
+      const videoUrl = videoDownloadUrl(videoJobId)
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1040,6 +1192,7 @@ export default function EpisodePage({
             campaignId={campaignId}
             campaignType={campaign?.type || 'ai-teaching'}
             research={research}
+            topic={episode.topic || ''}
             onSaved={handleSaved}
           />
         )}
@@ -1047,6 +1200,7 @@ export default function EpisodePage({
           <ScriptPanel
             episodeId={episodeId}
             topic={episode.topic}
+            episode={episode}
             research={research}
             script={script}
             onSaved={handleSaved}

@@ -128,9 +128,19 @@ RULES:
 
 SCRIPT FORMAT (return as JSON):
 {
-  "hook": { "text": "...", "duration_seconds": 5, "virality_score": 0-100 },
-  "main_content": { "text": "...", "sections": [{"title": "...", "text": "..."}] },
-  "cta": { "text": "...", "platform_variants": {"instagram": "...", "youtube": "...", "x": "...", "linkedin": "..."} },
+  "voiceover_script": "Clean spoken script for ElevenLabs, no camera directions, just what the voice should say.",
+  "content_map": {
+    "title": "...",
+    "hook": { "headline": "...", "subtext": "...", "stat": "..." },
+    "problem": { "headline": "...", "bullets": ["...", "...", "..."], "stat": "..." },
+    "solution": { "headline": "...", "key_points": ["...", "...", "..."], "stat": "..." },
+    "cta": { "text": "...", "urgency": "..." },
+    "hashtags": ["...", "...", "...", "...", "..."],
+    "title_variants": ["...", "...", "..."],
+    "description": "...",
+    "virality_score": 0,
+    "virality_label": "Good|Great|Viral"
+  },
   "metadata": {
     "word_count": 0,
     "estimated_duration_seconds": 0,

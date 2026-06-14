@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime"
 import { NextRequest, NextResponse } from 'next/server'
 
-const apiKey = process.env.ANTHROPIC_API_KEY || ''
-const client = apiKey && apiKey !== 'dummy' ? new Anthropic({ apiKey }) : null
+// We only initialize the client if we have AWS credentials in environment or default chain
+const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1" })
 
 export async function POST(req: NextRequest) {
   try {
@@ -130,15 +130,21 @@ Format your output as JSON ONLY (no markdown code blocks, backticks, or text bef
       return NextResponse.json({ error: 'Unknown agent' }, { status: 400 })
     }
 
-    const message = await client.messages.create({
-      model: 'claude-3-5-sonnet-latest',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }]
+    const command = new ConverseCommand({
+      modelId: 'amazon.nova-pro-v1:0',
+      messages: [{
+        role: 'user',
+        content: [{ text: prompt }]
+      }],
+      inferenceConfig: {
+        maxTokens: 1024
+      }
     })
 
-    const text = (message.content[0] as { type: string; text: string }).text
+    const response = await client.send(command)
+    const text = response.output?.message?.content?.[0]?.text || ''
     
-    // Clean up any potential markdown formatting if Claude returned it anyway
+    // Clean up any potential markdown formatting if Bedrock returned it anyway
     const cleanJsonText = text
       .trim()
       .replace(/^```json\s*/i, '')
