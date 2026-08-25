@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Search, FileText, Video, Send, BarChart3, Clock, Flame, Loader2, Copy, Check, Download, Play, RotateCcw, AtSign, Play as Play2, Globe, Briefcase, AlertTriangle, Zap } from 'lucide-react'
+import { ArrowLeft, Search, FileText, Video, Send, BarChart3, Clock, Flame, Loader2, Copy, Check, Download, Play, RotateCcw, AtSign, Play as Play2, Globe, Briefcase, AlertTriangle, Zap, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,11 +17,15 @@ import { HashtagPill } from '@/components/shared/HashtagPill'
 import { CopyButton } from '@/components/shared/CopyButton'
 import { ApprovalGate } from '@/components/shared/ApprovalGate'
 import { SCRIPT_AGENT_PROMPT, VIRALITY_AGENT_PROMPT, PLATFORM_COLORS, SOCIAL_PLATFORMS } from '@/lib/constants'
-// Use direct API paths — never route through the Python CATALYST backend for video jobs
+import { RemotionProductionStudio } from '@/components/remotion/RemotionProductionStudio'
+import { SAMPLE_SHOWCASE_SPEC } from '@/lib/video-spec/sampleSpec'
+import { SAMPLE_SHOWCASE_SPEC_2 } from '@/lib/video-spec/sampleSpec2'
+import type { VideoSpec } from '@/lib/video-spec/types'
+import type { AgentStep, ResearchBrief, ScriptData, ViralityScore } from '@/lib/types'
+
 const videoPreviewUrl = (jobId: string) => `/api/catalyst/preview/${jobId}`
 const videoDownloadUrl = (jobId: string, segment = 0) => `/api/catalyst/download/${jobId}?segment=${segment}`
 const videoStatusUrl = (jobId: string) => `/api/catalyst/status/${jobId}`
-import type { AgentStep, ResearchBrief, ScriptData, ViralityScore } from '@/lib/types'
 
 // ─── Tab Navigation ──────────────────────────────────────────────────────────
 const TABS = [
@@ -532,7 +536,7 @@ function ScriptPanel({ episodeId, topic, episode, research, script: savedScript,
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Title Variants</p>
-                    {script.metadata.youtube_title_variants.map((v, i) => (
+                    {(script.metadata.youtube_title_variants || []).map((v: string, i: number) => (
                       <p key={i} className="text-sm text-muted-foreground">• {v}</p>
                     ))}
                   </div>
@@ -567,7 +571,7 @@ function ScriptPanel({ episodeId, topic, episode, research, script: savedScript,
                     <CopyButton text={script.metadata.x_thread.join('\n\n')} label="Copy Thread" />
                   </div>
                   <div className="space-y-2">
-                    {script.metadata.x_thread.map((tweet, i) => (
+                    {(script.metadata.x_thread || []).map((tweet: string, i: number) => (
                       <div key={i} className="flex gap-2">
                         <span className="font-mono text-xs text-muted-foreground shrink-0 mt-1">{i + 1}/</span>
                         <p className="text-sm">{tweet}</p>
@@ -594,6 +598,7 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
   videoUrl?: string
   onSaved: () => void
 }) {
+  const [engineMode, setEngineMode] = useState<'remotion' | 'legacy'>('remotion')
   const [generating, setGenerating] = useState(false)
   const [currentJobId, setCurrentJobId] = useState(jobId || '')
   const [status, setStatus] = useState<'idle' | 'queued' | 'rendering' | 'done' | 'error'>('idle')
@@ -602,7 +607,7 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
   const [errorMsg, setErrorMsg] = useState('')
   const [palette, setPalette] = useState('tutorial-neon')
   const [motion, setMotion] = useState('kinetic')
-  const [duration, setDuration] = useState('60')
+  const [duration, setDuration] = useState('45')
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const previewUrl = currentJobId ? videoPreviewUrl(currentJobId) : undefined
@@ -709,7 +714,49 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
 
   return (
     <div className="space-y-6">
-      <Card className="bg-bg-surface2 border-border-DEFAULT">
+      <div className="flex items-center justify-between p-2 rounded-xl bg-bg-surface2 border border-border-DEFAULT">
+        <div className="flex items-center gap-2 text-xs font-semibold px-2">
+          <Sparkles size={14} className="text-emerald-400" />
+          <span>Active Video Engine:</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setEngineMode('remotion')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              engineMode === 'remotion'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Remotion Motion OS (Production)
+          </button>
+          <button
+            onClick={() => setEngineMode('legacy')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              engineMode === 'legacy'
+                ? 'bg-bg-surface text-white border border-border-DEFAULT'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Legacy Generator
+          </button>
+        </div>
+      </div>
+
+      {engineMode === 'remotion' ? (
+        <RemotionProductionStudio
+          initialSpec={SAMPLE_SHOWCASE_SPEC}
+          onSpecChange={async (updatedSpec) => {
+            await updateEpisode(episodeId, {
+              video_job_id: updatedSpec.id,
+              status: 'video_generated',
+            });
+            onSaved();
+          }}
+        />
+      ) : (
+        <>
+        <Card className="bg-bg-surface2 border-border-DEFAULT">
         <CardContent className="p-4 space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -853,6 +900,8 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
           )}
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   )
 }
