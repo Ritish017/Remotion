@@ -10,14 +10,15 @@ export const anthropic = new Anthropic({
 });
 
 /**
- * Supported Anthropic Production Model Identifiers
+ * Verified Anthropic Production Model Identifiers for this account
  */
 export const PRODUCTION_MODELS = {
-  SONNET_3_5: 'claude-3-5-sonnet-20241022',
-  SONNET_LATEST: 'claude-3-5-sonnet-latest',
-  HAIKU_3_5: 'claude-3-5-haiku-20241022',
-  HAIKU_LATEST: 'claude-3-5-haiku-latest',
+  SONNET_5: 'claude-sonnet-5',
+  SONNET_4_6: 'claude-sonnet-4-6',
+  SONNET_4_5: 'claude-sonnet-4-5-20250929',
+  HAIKU_4_5: 'claude-haiku-4-5-20251001',
+  OPUS_5: 'claude-opus-5',
 } as const;
 
-export const DEFAULT_MODEL = PRODUCTION_MODELS.SONNET_3_5;
-export const FAST_MODEL = PRODUCTION_MODELS.HAIKU_3_5;
+export const DEFAULT_MODEL = PRODUCTION_MODELS.SONNET_4_5;
+export const FAST_MODEL = PRODUCTION_MODELS.HAIKU_4_5;
