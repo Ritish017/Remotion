@@ -1,29 +1,45 @@
-import { ElevenLabsProvider } from './providers/elevenlabs';
-import { OpenAITTSProvider } from './providers/openai';
+import { OpenAIAudioProvider } from '../providers/audio/openai/OpenAIAudioProvider';
 import { LocalSynthesizerProvider } from './providers/synthesizer';
-import type { INarrationProvider, NarrationRequest, NarrationResponse } from './types';
+import type { NarrationRequest, NarrationResponse, TimedWord } from './types';
 
 export class NarrationFactory {
-  private static providers: INarrationProvider[] = [
-    new ElevenLabsProvider(),
-    new OpenAITTSProvider(),
-    new LocalSynthesizerProvider(),
-  ];
-
-  public static getActiveProvider(): INarrationProvider {
-    // Return first configured provider in priority order
-    for (const provider of this.providers) {
-      if (provider.isConfigured) {
-        return provider;
-      }
-    }
-    return new LocalSynthesizerProvider();
-  }
+  private static openaiAudio = new OpenAIAudioProvider();
+  private static localSynth = new LocalSynthesizerProvider();
 
   public static async generate(request: NarrationRequest): Promise<NarrationResponse> {
-    const provider = this.getActiveProvider();
-    console.log(`[NarrationFactory] Using narration provider: ${provider.providerId} (Production Ready: ${provider.providerId !== 'local_synthesizer'})`);
-    return provider.generateNarration(request);
+    if (this.openaiAudio.isConfigured) {
+      console.log(`🎙️ [NarrationFactory] Generating real neural voiceover via OpenAI TTS (${request.voiceId || 'onyx'})...`);
+      try {
+        const result = await this.openaiAudio.synthesize({
+          transcript: request.transcript,
+          voice: (request.voiceId as any) || 'onyx',
+          speed: request.speakingRate ?? 1.0,
+        });
+
+        const words: TimedWord[] = result.words.map((w) => ({
+          word: w.text,
+          start: w.startSeconds,
+          end: w.endSeconds,
+          confidence: w.confidence || 0.98,
+        }));
+
+        return {
+          audioUrl: result.audioUrl,
+          audioPath: result.audioPath,
+          durationSeconds: result.durationSeconds,
+          transcript: result.transcript,
+          words,
+          provider: 'openai',
+          isProductionReady: true,
+          metadata: { model: 'tts-1', voice: request.voiceId || 'onyx', transcription: 'whisper-1' },
+        };
+      } catch (e: any) {
+        console.warn(`[NarrationFactory] OpenAI TTS error (${e.message}). Falling back to local synthesizer.`);
+      }
+    }
+
+    console.log('[NarrationFactory] Using Local Synthesizer fallback.');
+    return this.localSynth.generateNarration(request);
   }
 }
 
