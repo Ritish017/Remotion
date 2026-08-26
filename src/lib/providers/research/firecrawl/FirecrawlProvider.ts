@@ -59,7 +59,7 @@ export class FirecrawlProvider implements IFirecrawlProvider {
       const single = await this.scrape(url);
       return [single];
     } catch (e: any) {
-      console.warn(`[Firecrawl] Crawl warning for ${url}:`, e.message);
+      console.warn(`[Firecrawl] Crawl notice for ${url}:`, e.message);
       return [];
     }
   }
@@ -88,13 +88,14 @@ export class FirecrawlProvider implements IFirecrawlProvider {
         url: item.url || '',
         title: item.title || query,
         publisher: item.metadata?.siteName || 'Web',
+        publishedAt: item.metadata?.publishedTime,
         retrievedAt: new Date().toISOString(),
         content: (item.markdown || item.description || '').slice(0, 6000),
-        markdown: item.markdown,
+        markdown: item.markdown || item.description || '',
         metadata: item.metadata || {},
       }));
     } catch (e: any) {
-      console.warn('[Firecrawl] Search error:', e.message);
+      console.warn('[Firecrawl] Search notice:', e.message);
       return [];
     }
   }
@@ -114,13 +115,14 @@ export class FirecrawlProvider implements IFirecrawlProvider {
     }
 
     try {
-      const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      // Lightweight authenticated health check
+      const res = await fetch('https://api.firecrawl.dev/v1/search', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: 'https://example.com' }),
+        body: JSON.stringify({ query: 'ping', limit: 1 }),
       });
 
       return {

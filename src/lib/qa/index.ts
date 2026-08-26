@@ -1,5 +1,27 @@
 import { TEMPLATE_REGISTRY } from '@/remotion/registry/TemplateRegistry';
+import { VISUAL_LANGUAGE_REGISTRY } from '@/remotion/visuals/VisualLanguageRegistry';
+import { validateVisualDiversity, type VisualDiversityReport } from './VisualDiversityValidator';
+import { analyzeVisualRhythm, type VisualRhythmScore } from './VisualRhythmAnalyzer';
+import { analyzeCinematicQuality, type CinematicQualityScore } from './CinematicQualityAnalyzer';
+import { analyzeHumanVisualQuality, type HumanVisualQualityReport } from './HumanVisualQualityAnalyzer';
+import { validateCameraBounds, type CameraBoundsReport } from './validators/CameraBoundsValidator';
+import { validateParallaxQuality, type ParallaxQualityReport } from './validators/ParallaxQualityValidator';
+import { validateTypographyQuality, type TypographyQualityReport } from './validators/TypographyValidator';
+import { validateCaptionQuality, type CaptionQualityReport } from './validators/CaptionQualityValidator';
+import { validateAudioQuality, type AudioQualityReport } from './validators/AudioQualityValidator';
+import { validateTransitionQuality, type TransitionQualityReport } from './validators/TransitionQualityValidator';
 import type { VideoSpec } from '@/lib/video-spec/types';
+
+export * from './VisualDiversityValidator';
+export * from './VisualRhythmAnalyzer';
+export * from './CinematicQualityAnalyzer';
+export * from './HumanVisualQualityAnalyzer';
+export * from './validators/CameraBoundsValidator';
+export * from './validators/ParallaxQualityValidator';
+export * from './validators/TypographyValidator';
+export * from './validators/CaptionQualityValidator';
+export * from './validators/AudioQualityValidator';
+export * from './validators/TransitionQualityValidator';
 
 export interface QACheckResult {
   name: string;
@@ -10,6 +32,18 @@ export interface QACheckResult {
 export interface QAReport {
   passed: boolean;
   score: number; // 0 to 100
+  humanVisualQualityScore: number; // 0.0 to 10.0
+  humanVisualReport: HumanVisualQualityReport;
+  technicalScore: number;
+  rhythmScore: VisualRhythmScore;
+  cinematicScore: CinematicQualityScore;
+  diversityReport: VisualDiversityReport;
+  cameraBoundsReport: CameraBoundsReport;
+  parallaxReport: ParallaxQualityReport;
+  typographyReport: TypographyQualityReport;
+  captionReport: CaptionQualityReport;
+  audioReport: AudioQualityReport;
+  transitionReport: TransitionQualityReport;
   checks: QACheckResult[];
   summary: string;
 }
@@ -36,60 +70,99 @@ export function runAutomatedQA(spec: VideoSpec): QAReport {
     checks.push({ name: 'Scene Continuity & Frame Synchronization', status: 'warn', message: 'Scene start frames had minor drift; normalized automatically.' });
   }
 
-  // Check 2: Template Registration
-  let unregisteredTemplates = 0;
+  // Check 2: Template / Visual Language Registration
+  let unregistered = 0;
   for (const scene of spec.scenes) {
-    if (!TEMPLATE_REGISTRY[scene.templateId]) {
-      unregisteredTemplates++;
+    const hasTemplate = Boolean(TEMPLATE_REGISTRY[scene.templateId]);
+    const hasVisualLang = Boolean(scene.visualLanguage && VISUAL_LANGUAGE_REGISTRY[scene.visualLanguage]);
+    const hasBeats = Boolean(scene.visualBeats && scene.visualBeats.length > 0);
+    if (!hasTemplate && !hasVisualLang && !hasBeats) {
+      unregistered++;
     }
   }
 
-  if (unregisteredTemplates === 0) {
-    checks.push({ name: 'Template Registry Verification', status: 'pass', message: 'All scene template IDs exist in TemplateRegistry.' });
+  if (unregistered === 0) {
+    checks.push({ name: 'Visual Language & Template Verification', status: 'pass', message: 'All scene languages and templates registered in Catalyst Engine.' });
   } else {
-    checks.push({ name: 'Template Registry Verification', status: 'fail', message: `${unregisteredTemplates} scenes use unregistered templates.` });
+    checks.push({ name: 'Visual Language & Template Verification', status: 'fail', message: `${unregistered} scenes use unregistered visual formats.` });
   }
 
-  // Check 3: Caption Synchronization
-  const totalSeconds = spec.composition.durationInFrames / spec.composition.fps;
-  const words = spec.narration?.words || [];
-  if (words.length > 0) {
-    const lastWord = words[words.length - 1];
-    if (lastWord.end <= totalSeconds + 1) {
-      checks.push({ name: 'Word-Level Caption Synchronization', status: 'pass', message: `${words.length} words aligned across ${totalSeconds}s narration.` });
-    } else {
-      checks.push({ name: 'Word-Level Caption Synchronization', status: 'warn', message: 'Captions exceed composition duration slightly.' });
-    }
+  // Specialized Validators
+  const cameraBoundsReport = validateCameraBounds(spec);
+  const parallaxReport = validateParallaxQuality(spec);
+  const typographyReport = validateTypographyQuality(spec);
+  const captionReport = validateCaptionQuality(spec);
+  const audioReport = validateAudioQuality(spec);
+  const transitionReport = validateTransitionQuality(spec);
+  const humanVisualReport = analyzeHumanVisualQuality(spec);
+
+  // Check 3: Human Visual Quality Production Threshold (>= 8.0)
+  if (humanVisualReport.passed) {
+    checks.push({
+      name: 'Human Visual Quality Gate (Target >= 8.0/10)',
+      status: 'pass',
+      message: `Documentary Visual Quality: ${humanVisualReport.overallScore}/10 (Composition: ${humanVisualReport.subscores.composition}, Density: ${humanVisualReport.subscores.visualDensity}, Typography: ${humanVisualReport.subscores.typography}).`,
+    });
   } else {
-    checks.push({ name: 'Word-Level Caption Synchronization', status: 'warn', message: 'No word timestamps provided; fallback subtitles active.' });
+    checks.push({
+      name: 'Human Visual Quality Gate (Target >= 8.0/10)',
+      status: 'warn',
+      message: `Visual quality score ${humanVisualReport.overallScore}/10 is below 8.0 threshold: ${humanVisualReport.warnings.join('; ')}`,
+    });
   }
 
-  // Check 4: Safe Zone & Aspect Ratio
-  const { width, height } = spec.composition;
-  if ((width === 1080 && height === 1920) || (width === 1920 && height === 1080) || (width === 1080 && height === 1080)) {
-    checks.push({ name: 'Broadcast Safe Zone & Resolution', status: 'pass', message: `Composition rendered at standard ${width}x${height} broadcast resolution.` });
+  // Check 4: Caption Synchronization
+  if (captionReport.passed) {
+    checks.push({ name: 'Word-Level Caption Synchronization', status: 'pass', message: `${captionReport.wordCount} words aligned monotonically.` });
   } else {
-    checks.push({ name: 'Broadcast Safe Zone & Resolution', status: 'warn', message: `Non-standard resolution (${width}x${height}).` });
+    checks.push({ name: 'Word-Level Caption Synchronization', status: 'warn', message: captionReport.warnings.join('; ') || 'Caption timestamp warnings detected.' });
   }
 
-  // Check 5: Audio & Ducking Config
-  if (spec.audio?.voiceoverVolume > 0 && spec.audio?.musicVolume < spec.audio?.voiceoverVolume) {
-    checks.push({ name: 'Acoustic Hierarchy & Voice Ducking', status: 'pass', message: `Voiceover prioritized (1.0) with automated music ducking (-${Math.round(spec.audio.duckingPercentage * 100)}%).` });
+  // Check 5: Safe Zone & Typography
+  if (typographyReport.passed) {
+    checks.push({ name: 'Typography Safe Zone & Contrast', status: 'pass', message: 'Typography safe margins and font sizing compliant.' });
   } else {
-    checks.push({ name: 'Acoustic Hierarchy & Voice Ducking', status: 'warn', message: 'Audio levels may conflict; verify speech intelligibility.' });
+    checks.push({ name: 'Typography Safe Zone & Contrast', status: 'warn', message: typographyReport.warnings.join('; ') });
   }
 
   const failCount = checks.filter((c) => c.status === 'fail').length;
   const warnCount = checks.filter((c) => c.status === 'warn').length;
-  const passed = failCount === 0;
-  const score = Math.max(0, 100 - failCount * 40 - warnCount * 10);
+  const technicalPassed = failCount === 0;
+  const technicalScore = Math.max(0, 100 - failCount * 40 - warnCount * 10);
+
+  // Run Visual Quality Checks
+  const diversityReport = validateVisualDiversity(spec);
+  const rhythmScore = analyzeVisualRhythm(spec);
+  const cinematicScore = analyzeCinematicQuality(spec);
+
+  const overallScore = Math.round(
+    technicalScore * 0.20 +
+    rhythmScore.score * 0.20 +
+    cinematicScore.score * 0.20 +
+    (humanVisualReport.overallScore * 10) * 0.30 +
+    typographyReport.score * 0.10
+  );
+
+  const passed = technicalPassed && rhythmScore.passed && cinematicScore.passed && humanVisualReport.passed;
 
   return {
     passed,
-    score,
+    score: overallScore,
+    humanVisualQualityScore: humanVisualReport.overallScore,
+    humanVisualReport,
+    technicalScore,
+    rhythmScore,
+    cinematicScore,
+    diversityReport,
+    cameraBoundsReport,
+    parallaxReport,
+    typographyReport,
+    captionReport,
+    audioReport,
+    transitionReport,
     checks,
     summary: passed
-      ? `QA Passed (${score}/100) — Ready for high-definition render.`
-      : `QA Warnings Detected (${score}/100) — Please inspect flagged checks.`,
+      ? `QA Passed (${overallScore}/100) — Human Visual Quality: ${humanVisualReport.overallScore}/10, Rhythm: ${rhythmScore.score}/100, Cinematic: ${cinematicScore.score}/100.`
+      : `QA Warnings Detected (${overallScore}/100) — Human Visual Quality: ${humanVisualReport.overallScore}/10, Rhythm: ${rhythmScore.score}/100.`,
   };
 }

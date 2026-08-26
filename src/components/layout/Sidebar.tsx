@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Layers, Library, BarChart3, Settings, LayoutDashboard, Zap, Brain, Trophy, Bot, Wand2 } from 'lucide-react'
+import { Layers, Library, BarChart3, Settings, LayoutDashboard, Zap, Brain, Trophy, Bot, Wand2, Film } from 'lucide-react'
 import { MODELS } from '@/lib/constants'
 import { getJobs } from '@/lib/api'
 import { mapModelNameToId } from '@/lib/utils'
@@ -31,6 +31,7 @@ export function Sidebar() {
 
   const contentOsNav = [
     { name: 'Campaigns', href: '/campaigns', icon: Layers, accent: '#6c47ff' },
+    { name: 'Live Studio', href: '/studio', icon: Film, accent: '#10b981' },
     { name: 'Library', href: '/library', icon: Library, accent: '#8b5cf6' },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, accent: '#00c9a7' },
     { name: 'Settings', href: '/settings', icon: Settings, accent: '#71717a' },

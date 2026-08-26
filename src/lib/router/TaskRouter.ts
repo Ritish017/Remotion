@@ -116,9 +116,9 @@ export class TaskRouter {
       case 'VIDEO_RENDER':
         return {
           task,
-          provider: 'Remotion Lambda / AWS S3',
+          provider: 'Remotion Local Renderer (@remotion/renderer) / Local Storage',
           isAvailable: true,
-          notes: 'Distributed cloud rendering engine on AWS Lambda with S3 delivery.',
+          notes: 'High-performance local rendering engine on GPU/CPU with disk storage and SQLite job tracking.',
         };
 
       default:

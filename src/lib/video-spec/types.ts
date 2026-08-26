@@ -27,11 +27,24 @@ export type ExitType =
 export type CameraMovementType = 
   | 'push'
   | 'pull'
+  | 'pan'
   | 'pan-left'
   | 'pan-right'
+  | 'pan-up'
+  | 'pan-down'
+  | 'zoom-in'
+  | 'zoom-out'
   | 'zoom-region'
-  | 'subtle-shake'
+  | 'orbit'
   | 'parallax'
+  | 'rack-focus'
+  | 'handheld'
+  | 'micro-drift'
+  | 'whip-pan'
+  | 'snap-zoom'
+  | 'subtle-shake'
+  | 'match-cut'
+  | 'tilt'
   | 'static';
 
 export type SceneType =
@@ -58,8 +71,15 @@ export interface MotionConfig {
 }
 
 export interface CameraConfig {
-  type: CameraMovementType;
+  type: CameraMovementType | string;
+  movement?: string;
   intensity?: number; // 0.0 to 1.0
+  startScale?: number;
+  endScale?: number;
+  xMovement?: number;
+  yMovement?: number;
+  rotation?: number;
+  focusTarget?: string;
   focalPoint?: { x: number; y: number }; // percentage 0-100
 }
 
@@ -129,6 +149,78 @@ export interface LayerData {
   styling?: Record<string, any>;
 }
 
+export * from './visual';
+import type { VisualBeat, VisualLanguageId } from './visual';
+
+export interface ResearchSource {
+  sourceId: string;
+  title: string;
+  url?: string;
+  publisher?: string;
+  publishDate?: string;
+}
+
+export interface ResearchFact {
+  factId: string;
+  sourceId: string;
+  claim: string;
+  confidence: number; // 0.0 to 1.0
+  category?: string;
+}
+
+export interface FactClaim {
+  claimId: string;
+  text: string;
+  sourceId?: string;
+  factId?: string;
+  confidence?: number;
+}
+
+export interface StoryboardAsset {
+  type: string;
+  query?: string;
+  role: 'foreground' | 'midground' | 'background' | 'data' | 'texture' | 'subject';
+  importance?: number;
+  url?: string;
+  description?: string;
+}
+
+export interface StoryboardComposition {
+  layout?: string;
+  subjectPosition?: string;
+  scale?: number;
+  crop?: string;
+  focalPoint?: string | { x: number; y: number };
+  negativeSpace?: string;
+}
+
+export interface StoryboardLayer {
+  role: string;
+  asset?: string;
+  assetUrl?: string;
+  depth?: number;
+  opacity?: number;
+}
+
+export interface StoryboardTypography {
+  headline?: string;
+  supportingText?: string;
+  hierarchy?: string;
+  position?: string;
+  animation?: string;
+  emphasisWords?: string[];
+}
+
+export interface StoryboardTransition {
+  in?: string;
+  out?: string;
+  motivation?: string;
+  type?: 'fade' | 'slide' | 'wipe' | 'flip' | 'match-cut' | 'zoom-through' | 'none';
+  durationFrames?: number;
+  sharedGeometry?: string;
+  direction?: string;
+}
+
 export interface SceneData {
   id: string;
   sceneNumber: number;
@@ -140,13 +232,32 @@ export interface SceneData {
   narrationText?: string;
   narrationStart?: number; // seconds
   narrationEnd?: number;   // seconds
-  camera?: CameraConfig;
+  claimIds?: string[];
+  
+  // Phase 4B Visual Storyboard Fields
+  visualIntent?: string;
+  visualType?: string;
+  primarySubject?: string;
+  visualMetaphor?: string;
+  assets?: StoryboardAsset[];
+  composition?: StoryboardComposition;
+  layers?: StoryboardLayer[];
+  camera?: CameraConfig | Record<string, any>;
+  typography?: StoryboardTypography;
+  dataVisualization?: any;
+  transition?: StoryboardTransition;
+
   background?: LayerData;
   midground?: LayerData;
   foreground?: LayerData;
-  props?: Record<string, any>;
+  visualLanguage?: VisualLanguageId | string;
+  visualBeats?: VisualBeat[];
+  props?: Record<string, any> & {
+    factConfidence?: number;
+    sourceCitation?: string;
+  };
   transitionToNext?: {
-    type: 'fade' | 'slide' | 'wipe' | 'flip' | 'none';
+    type: 'fade' | 'slide' | 'wipe' | 'flip' | 'match-cut' | 'zoom-through' | 'none';
     durationFrames: number;
   };
 }
@@ -168,10 +279,14 @@ export interface AudioSystemSpec {
 }
 
 export interface VideoSpec {
-  version: '1.0.0' | string;
+  version: '1.0.0' | '2.0.0' | string;
   id: string;
   title: string;
   description?: string;
+  motionSeed?: number;
+  research_sources?: ResearchSource[];
+  research_facts?: ResearchFact[];
+  claims?: FactClaim[];
   composition: {
     format: AspectRatio;
     width: number;

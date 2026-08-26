@@ -1,24 +1,54 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { getClaudeConfig } from '@/lib/providers/ai/claude/config';
+import { modelRouter, ModelTask } from './modelRouter';
 
-// Initialize the official Anthropic client server-side only
-const apiKey = process.env.ANTHROPIC_API_KEY || '';
-
-export const anthropic = new Anthropic({
-  apiKey,
-  maxRetries: 3,
-  timeout: 30000,
-});
+let cachedClient: Anthropic | null = null;
+let lastApiKey: string | null = null;
 
 /**
- * Verified Anthropic Production Model Identifiers for this account
+ * Returns an official Anthropic client initialized with the current environment configuration.
+ * Instantiated lazily to prevent static load-time failures.
  */
-export const PRODUCTION_MODELS = {
-  SONNET_5: 'claude-sonnet-5',
-  SONNET_4_6: 'claude-sonnet-4-6',
-  SONNET_4_5: 'claude-sonnet-4-5-20250929',
-  HAIKU_4_5: 'claude-haiku-4-5-20251001',
-  OPUS_5: 'claude-opus-5',
-} as const;
+export function getAnthropicClient(): Anthropic {
+  const config = getClaudeConfig();
+  if (!config.apiKey || config.apiKey.trim().length === 0) {
+    throw new Error('Anthropic API key is not configured. Set ANTHROPIC_API_KEY in environment.');
+  }
 
-export const DEFAULT_MODEL = PRODUCTION_MODELS.SONNET_4_5;
-export const FAST_MODEL = PRODUCTION_MODELS.HAIKU_4_5;
+  if (!cachedClient || lastApiKey !== config.apiKey) {
+    cachedClient = new Anthropic({
+      apiKey: config.apiKey,
+      maxRetries: 3,
+      timeout: 45000,
+    });
+    lastApiKey = config.apiKey;
+  }
+
+  return cachedClient;
+}
+
+/**
+ * Proxy object for backwards compatibility with modules expecting `anthropic.messages.create`
+ */
+export const anthropic = new Proxy({} as Anthropic, {
+  get(_target, prop) {
+    const client = getAnthropicClient();
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});
+
+export function getDefaultModel(task: ModelTask = 'editorial_planning'): string {
+  return modelRouter.resolveModel(task);
+}
+
+export function getFastModel(): string {
+  return modelRouter.getFastModel();
+}
+
+export function getPrimaryModel(): string {
+  return modelRouter.getPrimaryModel();
+}
+
+export const DEFAULT_MODEL = modelRouter.getPrimaryModel();
+export const FAST_MODEL = modelRouter.getFastModel();

@@ -55,7 +55,7 @@ async function runFullProductionPipeline() {
 
   console.log(`   - Generated ${storyboard.scenes.length} Scenes (${storyboard.totalDurationFrames} frames @ 30 FPS)`);
   storyboard.scenes.forEach((s) => {
-    console.log(`     Scene ${s.sceneNumber}: [${s.templateId}] "${s.headline}" (${s.durationFrames}f)`);
+    console.log(`     Scene ${s.sceneNumber}: [${s.templateId}] "${s.props?.headline || s.title}" (${s.durationFrames}f)`);
   });
   console.log('   Storyboard Director complete. ✅\n');
 

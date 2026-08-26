@@ -4,16 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "npx tsx scripts/test-engine.ts",
+    "catalyst:server": "next dev -p 3000 -H 127.0.0.1",
     "remotion:studio": "remotion studio src/remotion/index.ts",
-    "remotion:render": "remotion render src/remotion/index.ts"
+    "remotion:render": "remotion render src/remotion/index.ts",
+    "remotion:bundle": "remotion lambda sites create src/remotion/index.ts --site-name=catalyst-remotion",
+    "remotion:lambda:deploy": "remotion lambda functions deploy --memory=2048 --disk=2048 --timeout=240",
+    "remotion:lambda:verify": "npx tsx scripts/verify-lambda.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
-    "@aws-sdk/client-bedrock-runtime": "^3.1068.0",
     "@aws-sdk/client-s3": "^3.1068.0",
     "@aws-sdk/s3-request-presigner": "^3.1068.0",
     "@base-ui/react": "^1.5.0",

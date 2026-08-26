@@ -3,6 +3,7 @@
 import React from 'react';
 import { Composition } from 'remotion';
 import { MasterComposition } from './compositions/MasterComposition';
+import { Phase6RevisedShowcase } from './compositions/Phase6RevisedShowcase';
 import { VerticalExplainer } from './compositions/VerticalExplainer';
 import { HorizontalExplainer } from './compositions/HorizontalExplainer';
 import { SAMPLE_SHOWCASE_SPEC } from '@/lib/video-spec/sampleSpec';
@@ -52,6 +53,15 @@ export const RemotionRoot: React.FC = () => {
           spec: SAMPLE_SHOWCASE_SPEC,
         }}
         schema={VideoSpecSchema as any}
+      />
+
+      <Composition
+        id="Phase6RevisedShowcase"
+        component={Phase6RevisedShowcase}
+        durationInFrames={1350}
+        fps={30}
+        width={1080}
+        height={1920}
       />
 
       {/* 4. Showcase Video 2 (Robotics Inflection) */}

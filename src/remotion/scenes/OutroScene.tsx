@@ -16,53 +16,129 @@ interface OutroSceneProps {
 
 export const OutroScene: React.FC<OutroSceneProps> = ({ scene, brand }) => {
   const { durationFrames } = scene;
-  const ctaTitle = scene.props?.ctaTitle || 'Follow for Daily Deep Dives';
+  const ctaTitle = scene.props?.ctaTitle || 'Subscribe for Daily Deep Dives';
   const handle = scene.props?.handle || '@CatalystStudio';
-  const subtext = scene.props?.subtext || 'Next episode drops tomorrow at 09:00 UTC';
+  const subtext = scene.props?.subtext || 'Next investigation drops tomorrow at 09:00 UTC';
+  const channelName = scene.props?.channelName || 'CATALYST';
+  const tagline = scene.props?.tagline || 'Engineering the Physical Frontier';
+
+  const accentColor = brand?.colors?.accent || '#ffd166';
+  const primaryColor = brand?.colors?.primary || '#f0522a';
 
   return (
-    <AbsoluteFill className="bg-[#0b0d13] text-white overflow-hidden">
-      <CameraRig camera={scene.camera || { type: 'push', intensity: 0.1 }} durationInFrames={durationFrames}>
-        {/* Background */}
+    <AbsoluteFill className="bg-[#0b0d13] text-white overflow-hidden select-none">
+      <CameraRig camera={scene.camera || { type: 'push', intensity: 0.15 }} durationInFrames={durationFrames}>
+        {/* Background glow */}
         <AbsoluteFill className="z-0">
           <div
-            className="w-full h-full"
             style={{
-              background: `radial-gradient(ellipse at 50% 50%, ${brand.colors.primary}33 0%, ${brand.colors.background} 80%)`,
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              background: `radial-gradient(ellipse at 50% 45%, ${primaryColor}33 0%, ${brand.colors.background} 80%)`,
             }}
           />
         </AbsoluteFill>
 
         {/* Content */}
-        <AbsoluteFill className="z-10 flex flex-col justify-center items-center p-12 text-center space-y-8">
-          {/* Logo / Badge icon */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '64px 48px 180px 48px',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+            zIndex: 10,
+          }}
+        >
+          {/* Logo / Monogram */}
           <SpringEntrance type="scale" delay={2} damping={10}>
             <div
-              className="w-24 h-24 rounded-3xl flex items-center justify-center text-4xl font-black text-black shadow-2xl"
               style={{
-                backgroundColor: brand.colors.accent,
-                boxShadow: `0 0 40px ${brand.colors.accent}66`,
+                width: '120px',
+                height: '120px',
+                borderRadius: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '56px',
+                fontWeight: 900,
+                fontFamily: 'Inter, system-ui, sans-serif',
+                color: '#0b0d13',
+                backgroundColor: accentColor,
+                boxShadow: `0 0 50px ${accentColor}88`,
+                marginBottom: '28px',
               }}
             >
               C
             </div>
           </SpringEntrance>
 
-          <SpringEntrance type="slide-up" delay={6} className="space-y-3">
-            <h2 className="text-4xl font-black tracking-tight text-white/95 max-w-md">
-              {ctaTitle}
-            </h2>
-            <div className="inline-block px-5 py-2 rounded-full bg-white/10 border border-white/20 text-xl font-mono font-bold text-emerald-400">
-              {handle}
+          <SpringEntrance type="slide-up" delay={6}>
+            <div style={{ marginBottom: '24px' }}>
+              <h2
+                style={{
+                  fontSize: '48px',
+                  fontWeight: 900,
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  letterSpacing: '-0.03em',
+                  color: '#ffffff',
+                  margin: '0 0 12px 0',
+                }}
+              >
+                {channelName}
+              </h2>
+              <p
+                style={{
+                  fontSize: '20px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: '#94a3b8',
+                  margin: '0 0 20px 0',
+                }}
+              >
+                {tagline}
+              </p>
+              <div
+                style={{
+                  display: 'inline-block',
+                  padding: '12px 28px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.10)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.25)',
+                  fontSize: '22px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontWeight: 800,
+                  color: '#34d399',
+                }}
+              >
+                {handle}
+              </div>
             </div>
           </SpringEntrance>
 
           <SpringEntrance type="fade" delay={12}>
-            <p className="text-sm font-medium text-white/50 tracking-wider uppercase font-mono">
+            <p
+              style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                fontFamily: 'JetBrains Mono, monospace',
+                color: '#64748b',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                margin: 0,
+              }}
+            >
               {subtext}
             </p>
           </SpringEntrance>
-        </AbsoluteFill>
+        </div>
       </CameraRig>
 
       {/* Textures */}

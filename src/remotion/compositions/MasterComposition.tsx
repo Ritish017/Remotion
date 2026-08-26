@@ -7,6 +7,8 @@ import { KaraokeCaptions } from '../components/captions/KaraokeCaptions';
 import { SAMPLE_SHOWCASE_SPEC } from '@/lib/video-spec/sampleSpec';
 import type { VideoSpec } from '@/lib/video-spec/types';
 
+import { VisualBeatRenderer } from '../composition/VisualBeatRenderer';
+
 export interface MasterCompositionProps {
   spec?: VideoSpec;
 }
@@ -15,7 +17,7 @@ export const MasterComposition: React.FC<MasterCompositionProps> = ({ spec = SAM
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const { scenes, brand, narration, audio } = spec;
+  const { scenes, brand, narration, audio, motionSeed = 42 } = spec;
 
   // Calculate current audio ducking factor (reduce music volume during speech)
   const isSpeaking = narration?.words?.some((w) => {
@@ -32,17 +34,24 @@ export const MasterComposition: React.FC<MasterCompositionProps> = ({ spec = SAM
     <AbsoluteFill className="bg-[#0b0d13] select-none">
       {/* 1. Scene Sequences */}
       {scenes.map((scene) => {
-        const template = getTemplateById(scene.templateId);
-        const SceneComponent = template.component;
+        const hasBeats = Array.isArray(scene.visualBeats) && scene.visualBeats.length > 0;
 
         return (
           <Sequence
             key={scene.id}
             from={scene.startFrame}
             durationInFrames={scene.durationFrames}
-            name={`Scene ${scene.sceneNumber} (${scene.type})`}
+            name={`Scene ${scene.sceneNumber} (${scene.visualLanguage || scene.type})`}
           >
-            <SceneComponent scene={scene} brand={brand} />
+            {hasBeats ? (
+              <VisualBeatRenderer scene={scene} brand={brand} motionSeed={motionSeed} />
+            ) : (
+              (() => {
+                const template = getTemplateById(scene.templateId);
+                const SceneComponent = template.component;
+                return <SceneComponent scene={scene} brand={brand} />;
+              })()
+            )}
           </Sequence>
         );
       })}

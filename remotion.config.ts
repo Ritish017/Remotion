@@ -3,8 +3,7 @@ import { Config } from '@remotion/cli/config';
 
 Config.setVideoImageFormat('jpeg');
 Config.setOverwriteOutput(true);
-Config.setJpegQuality(90);
-Config.setConcurrency(1);
+Config.setJpegQuality(85);
 Config.setPort(3033);
 
 Config.overrideWebpackConfig((currentConfiguration) => {

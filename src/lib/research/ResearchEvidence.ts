@@ -7,7 +7,7 @@ export interface IResearchEvidence {
   facts: ResearchFact[];
   keyMetrics: Array<{ label: string; value: string; context: string }>;
   timelineEvents: Array<{ year: string; event: string }>;
-  gatheredAt: string;
+  gatheredAt?: string;
 }
 
 export class ResearchEvidence implements IResearchEvidence {

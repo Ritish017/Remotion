@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Player, PlayerRef } from '@remotion/player';
-import { MasterComposition } from '@/remotion/compositions/MasterComposition';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { PlayerRef } from '@remotion/player';
 import { SAMPLE_SHOWCASE_SPEC } from '@/lib/video-spec/sampleSpec';
 import { runAutomatedQA, type QAReport } from '@/lib/qa';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Play,
   Pause,
@@ -19,56 +17,125 @@ import {
   Download,
   Film,
   Layers,
-  Wand2,
   Sliders,
   Maximize2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  Plus,
+  ShieldAlert,
+  HelpCircle,
+  Eye,
 } from 'lucide-react';
 import type { VideoSpec, AspectRatio } from '@/lib/video-spec/types';
 
+import { LivePlayerViewport } from './studio/LivePlayerViewport';
+import { ProportionalTimeline } from './studio/ProportionalTimeline';
+import { CurrentSceneInspector } from './studio/CurrentSceneInspector';
+import { ClaudeIterationDrawer } from './studio/ClaudeIterationDrawer';
+import { VisualQAPanel } from './studio/VisualQAPanel';
+import { CaptionsInspector } from './studio/CaptionsInspector';
+import { AudioInspector } from './studio/AudioInspector';
+import { FinalRenderComparison } from './studio/FinalRenderComparison';
+import { NewVideoModal } from './studio/NewVideoModal';
+
 interface RemotionProductionStudioProps {
   initialSpec?: VideoSpec;
+  episodeTitle?: string;
   onSpecChange?: (spec: VideoSpec) => void;
   onRenderRequest?: (spec: VideoSpec) => void;
 }
 
 export function RemotionProductionStudio({
   initialSpec = SAMPLE_SHOWCASE_SPEC,
+  episodeTitle,
   onSpecChange,
   onRenderRequest,
 }: RemotionProductionStudioProps) {
   const [spec, setSpec] = useState<VideoSpec>(initialSpec);
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
-  const [currentFormat, setCurrentFormat] = useState<AspectRatio>('9:16');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isAiModifying, setIsAiModifying] = useState(false);
-  const [aiHistory, setAiHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
-    {
-      role: 'assistant',
-      text: 'AI Production Assistant ready. Ask me to adjust scenes, change camera angles, enhance typography, or tweak timings.',
-    },
-  ]);
+  const [currentFormat, setCurrentFormat] = useState<AspectRatio>(initialSpec?.composition?.format || '9:16');
+  const [currentFrame, setCurrentFrame] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1.0);
+  const [zoomLevel, setZoomLevel] = useState<number | 'fit'>('fit');
+  const [showSafeZones, setShowSafeZones] = useState(false);
+  const [activeTab, setActiveTab] = useState<'qa' | 'captions' | 'audio' | 'render'>('qa');
+
+  // QA and Rendering state
   const [qaReport, setQaReport] = useState<QAReport>(() => runAutomatedQA(initialSpec));
   const [isRendering, setIsRendering] = useState(false);
-  const [renderProgress, setRenderProgress] = useState<string | null>(null);
+  const [renderStage, setRenderStage] = useState<string | null>(null);
+  const [renderProgressPct, setRenderProgressPct] = useState(0);
+  const [completedJob, setCompletedJob] = useState<{ jobId: string; publicUrl: string } | null>(null);
+  const [isNewVideoModalOpen, setIsNewVideoModalOpen] = useState(false);
+
+  // Human Approval gate checklist
+  const [humanApproved, setHumanApproved] = useState(false);
 
   const playerRef = useRef<PlayerRef>(null);
+
+  const totalFrames = spec.composition.durationInFrames || 1350;
+  const fps = spec.composition.fps || 30;
+
+  // Format timecode MM:SS.ms
+  const formatTimecode = (frames: number) => {
+    const totalSec = frames / fps;
+    const mins = Math.floor(totalSec / 60);
+    const secs = Math.floor(totalSec % 60);
+    const ms = Math.floor((totalSec % 1) * 100);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  };
 
   // Synchronize internal spec when initialSpec changes
   useEffect(() => {
     if (initialSpec) {
       setSpec(initialSpec);
       setQaReport(runAutomatedQA(initialSpec));
+      if (initialSpec.composition?.format) {
+        setCurrentFormat(initialSpec.composition.format);
+      }
     }
   }, [initialSpec]);
+
+  // Synchronize active scene based on current frame
+  const handleFrameUpdate = useCallback(
+    (frame: number) => {
+      setCurrentFrame(frame);
+      const sceneIdx = spec.scenes.findIndex(
+        (s) => frame >= s.startFrame && frame < s.startFrame + s.durationFrames
+      );
+      if (sceneIdx !== -1 && sceneIdx !== activeSceneIndex) {
+        setActiveSceneIndex(sceneIdx);
+      }
+    },
+    [spec.scenes, activeSceneIndex]
+  );
 
   // Jump player to scene start frame
   const handleSelectScene = (index: number) => {
     setActiveSceneIndex(index);
-    const scene = spec.scenes[index];
-    if (scene && playerRef.current) {
-      playerRef.current.seekTo(scene.startFrame);
+    const targetScene = spec.scenes[index];
+    if (targetScene && playerRef.current) {
+      playerRef.current.seekTo(targetScene.startFrame);
     }
+  };
+
+  // Seek to arbitrary frame
+  const handleSeekToFrame = (frame: number) => {
+    const clamped = Math.max(0, Math.min(totalFrames - 1, frame));
+    if (playerRef.current) {
+      playerRef.current.seekTo(clamped);
+    }
+  };
+
+  // Step frame forward / backward
+  const handleStepFrame = (delta: number) => {
+    handleSeekToFrame(currentFrame + delta);
   };
 
   // Change Aspect Ratio
@@ -86,67 +153,67 @@ export function RemotionProductionStudio({
       },
     };
     setSpec(updatedSpec);
+    setQaReport(runAutomatedQA(updatedSpec));
     onSpecChange?.(updatedSpec);
   };
 
-  // Handle AI live modifications
-  const handleAiSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiPrompt.trim() || isAiModifying) return;
+  // Handle Spec update from Claude
+  const handleSpecUpdateFromClaude = (updatedSpec: VideoSpec) => {
+    setSpec(updatedSpec);
+    setQaReport(runAutomatedQA(updatedSpec));
+    onSpecChange?.(updatedSpec);
+  };
 
-    const userMsg = aiPrompt;
-    setAiPrompt('');
-    setAiHistory((prev) => [...prev, { role: 'user', text: userMsg }]);
-    setIsAiModifying(true);
-
-    try {
-      // Send modification request to Claude via /api/remotion/spec
-      const currentScene = spec.scenes[activeSceneIndex];
-      const res = await fetch('/api/remotion/spec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_scene',
-          spec,
-          sceneNumber: currentScene.sceneNumber,
-          modifications: {
-            props: {
-              ...currentScene.props,
-              headline: userMsg.toLowerCase().includes('headline') ? userMsg.replace(/.*headline\s*(to|is)?\s*/i, '').trim() : currentScene.props?.headline,
-            },
-            camera: userMsg.toLowerCase().includes('cinematic') || userMsg.toLowerCase().includes('camera')
-              ? { type: 'push', intensity: 0.25 }
-              : currentScene.camera,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (data.spec) {
-        setSpec(data.spec);
-        setQaReport(runAutomatedQA(data.spec));
-        onSpecChange?.(data.spec);
-        setAiHistory((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            text: `Applied targeted update to Scene ${currentScene.sceneNumber} (${currentScene.type}). Preview updated live in the Remotion Player.`,
-          },
-        ]);
-      }
-    } catch (err: any) {
-      setAiHistory((prev) => [
-        ...prev,
-        { role: 'assistant', text: `Failed to modify scene: ${err.message}` },
-      ]);
-    } finally {
-      setIsAiModifying(false);
+  // Play / Pause Toggle
+  const togglePlayPause = () => {
+    if (playerRef.current) {
+      playerRef.current.toggle();
     }
   };
 
+  // Keyboard Shortcuts (Space, Left/Right arrow, Home, End)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs or textareas
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlayPause();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        handleStepFrame(e.shiftKey ? -5 : -1);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        handleStepFrame(e.shiftKey ? 5 : 1);
+      } else if (e.code === 'Home') {
+        e.preventDefault();
+        handleSeekToFrame(0);
+      } else if (e.code === 'End') {
+        e.preventDefault();
+        handleSeekToFrame(totalFrames - 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentFrame, totalFrames]);
+
+  // Handle Final Local Render Dispatch
   const handleTriggerRender = async () => {
     setIsRendering(true);
-    setRenderProgress('Initializing render job...');
+    setRenderStage('Preparing Remotion bundle...');
+    setRenderProgressPct(5);
+    setCompletedJob(null);
+
     try {
       const res = await fetch('/api/remotion/render', {
         method: 'POST',
@@ -154,16 +221,64 @@ export function RemotionProductionStudio({
         body: JSON.stringify({ spec }),
       });
       const data = await res.json();
-      if (data.downloadUrl) {
-        setRenderProgress('Render complete!');
-        window.open(data.downloadUrl, '_blank');
-      } else {
-        setRenderProgress('Render job submitted.');
+
+      if (!res.ok || data.status === 'FAILED') {
+        throw new Error(data.error || 'Failed to initiate local render job');
       }
+
+      const jobId = data.jobId;
+
+      if (data.status === 'COMPLETED' && data.publicUrl) {
+        setRenderStage('Render verified & complete! 🎉');
+        setRenderProgressPct(100);
+        setIsRendering(false);
+        setCompletedJob({ jobId, publicUrl: data.publicUrl });
+        setActiveTab('render');
+        return;
+      }
+
+      // Poll real render status from /api/remotion/render/status/[jobId]
+      setRenderStage('Rendering frames locally (H.264)...');
+      let attempts = 0;
+      const maxAttempts = 120; // Up to 4 minutes with 2s intervals
+
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(`/api/remotion/render/status/${jobId}`);
+          const statusData = await statusRes.json();
+
+          if (statusData.status === 'COMPLETED') {
+            clearInterval(pollInterval);
+            setIsRendering(false);
+            setRenderStage('Local Render verified & complete! 🎉');
+            setRenderProgressPct(100);
+            if (statusData.publicUrl) {
+              setCompletedJob({ jobId, publicUrl: statusData.publicUrl });
+              setActiveTab('render');
+            }
+          } else if (statusData.status === 'FAILED') {
+            clearInterval(pollInterval);
+            setIsRendering(false);
+            setRenderStage(`Local render failed: ${statusData.error || 'Unknown error'}`);
+          } else {
+            const pct = Math.min(98, Math.max(5, Math.round((statusData.progress || 0) * 100)));
+            setRenderProgressPct(pct);
+            setRenderStage(`Rendering frames (${pct}%)...`);
+          }
+        } catch (pollErr: any) {
+          console.warn('Status poll error:', pollErr.message);
+        }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          setIsRendering(false);
+          setRenderStage('Local render timed out. Check SQLite render_jobs table.');
+        }
+      }, 2000);
     } catch (e: any) {
-      setRenderProgress(`Render failed: ${e.message}`);
-    } finally {
-      setTimeout(() => setIsRendering(false), 2000);
+      setIsRendering(false);
+      setRenderStage(`Local render failed: ${e.message}`);
     }
   };
 
@@ -171,21 +286,29 @@ export function RemotionProductionStudio({
 
   return (
     <div className="space-y-6">
-      {/* Studio Top Control Bar */}
+      {/* Studio Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-bg-surface border border-border-DEFAULT shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-accent-brand/20 flex items-center justify-center text-accent-brand">
-            <Film size={20} />
+          <div className="w-10 h-10 rounded-xl bg-accent-brand/20 flex items-center justify-center text-accent-brand">
+            <Film size={22} />
           </div>
           <div>
-            <h2 className="text-lg font-bold tracking-tight">{spec.title}</h2>
-            <p className="text-xs text-muted-foreground font-mono">
-              {spec.composition.durationInFrames} frames · {spec.composition.fps} FPS · {(spec.composition.durationInFrames / spec.composition.fps).toFixed(1)}s
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold tracking-tight text-foreground">
+                {episodeTitle || spec.title}
+              </h2>
+              <Badge variant="outline" className="text-[10px] font-mono text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                LOCAL ENGINE
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground font-mono mt-0.5">
+              {spec.composition.width}×{spec.composition.height} · {fps} FPS · {(totalFrames / fps).toFixed(1)}s Duration
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Right Controls: Aspect Ratio, Safe Zones, Zoom, New Video */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Format Selector */}
           <div className="flex items-center p-1 rounded-lg bg-bg-surface2 border border-border-DEFAULT text-xs font-semibold">
             {(['9:16', '16:9', '1:1'] as AspectRatio[]).map((fmt) => (
@@ -194,7 +317,7 @@ export function RemotionProductionStudio({
                 onClick={() => handleFormatChange(fmt)}
                 className={`px-3 py-1 rounded-md transition-all ${
                   currentFormat === fmt
-                    ? 'bg-accent-brand text-white shadow-sm'
+                    ? 'bg-accent-brand text-white shadow-sm font-bold'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -203,194 +326,328 @@ export function RemotionProductionStudio({
             ))}
           </div>
 
+          {/* Safe Zone Toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSafeZones(!showSafeZones)}
+            className={`h-8 text-xs font-mono gap-1.5 ${
+              showSafeZones
+                ? 'border-cyan-500 text-cyan-400 bg-cyan-500/10'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ShieldAlert size={13} />
+            Safe Zones
+          </Button>
+
+          {/* Zoom Selector */}
+          <div className="flex items-center gap-1 bg-bg-surface2 border border-border-DEFAULT rounded-lg p-1 text-[11px] font-mono">
+            <span className="text-muted-foreground px-1.5 flex items-center gap-1">
+              <Eye size={12} />
+              Zoom:
+            </span>
+            {(['fit', 0.75, 1.0, 1.25] as const).map((z) => (
+              <button
+                key={String(z)}
+                onClick={() => setZoomLevel(z)}
+                className={`px-2 py-0.5 rounded ${
+                  zoomLevel === z
+                    ? 'bg-accent-brand text-white font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {z === 'fit' ? 'Fit' : `${Math.round(z * 100)}%`}
+              </button>
+            ))}
+          </div>
+
           {/* QA Score Badge */}
           <Badge
             variant="outline"
-            className={`font-mono text-xs px-3 py-1 flex items-center gap-1.5 ${
+            className={`font-mono text-xs px-2.5 py-1 flex items-center gap-1.5 ${
               qaReport.passed
                 ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
                 : 'border-amber-500/40 text-amber-400 bg-amber-500/10'
             }`}
           >
-            {qaReport.passed ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
-            QA Score: {qaReport.score}/100
+            {qaReport.passed ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+            QA: {qaReport.score}/100
           </Badge>
 
-          {/* Render Action */}
+          {/* New Video Button */}
           <Button
-            onClick={handleTriggerRender}
-            disabled={isRendering}
-            className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+            size="sm"
+            onClick={() => setIsNewVideoModalOpen(true)}
+            className="gap-1.5 bg-bg-surface2 hover:bg-bg-surface3 border border-border-DEFAULT text-foreground font-bold h-8 text-xs"
           >
-            {isRendering ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            {isRendering ? 'Rendering MP4...' : 'Render MP4'}
+            <Plus size={14} />
+            New Video
           </Button>
         </div>
       </div>
 
-      {/* Main Grid: Player on Left, AI Assistant on Right */}
+      {/* Main Production Workspace: Left 7 Cols (Player & Scrubber), Right 5 Cols (Inspectors) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Remotion Player Window (7 Cols) */}
+        {/* Left Column: Video Viewport & Timeline Controls (7 Cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="relative rounded-2xl bg-black border border-white/10 overflow-hidden shadow-2xl flex items-center justify-center p-4 min-h-[580px]">
-            <div
-              style={{
-                width: currentFormat === '9:16' ? '330px' : currentFormat === '16:9' ? '100%' : '440px',
-                aspectRatio: currentFormat === '9:16' ? '9/16' : currentFormat === '16:9' ? '16/9' : '1/1',
-                maxHeight: '680px',
-              }}
-              className="rounded-xl overflow-hidden shadow-2xl border border-white/15"
-            >
-              <Player
-                ref={playerRef}
-                component={MasterComposition}
-                inputProps={{ spec }}
-                durationInFrames={spec.composition.durationInFrames}
-                fps={spec.composition.fps}
-                compositionWidth={spec.composition.width}
-                compositionHeight={spec.composition.height}
-                style={{ width: '100%', height: '100%' }}
-                controls
-                autoPlay={false}
-                loop
+          {/* Live Video Player */}
+          <LivePlayerViewport
+            playerRef={playerRef}
+            spec={spec}
+            format={currentFormat}
+            zoom={zoomLevel}
+            showSafeZone={showSafeZones}
+            playbackRate={playbackRate}
+            isMuted={isMuted}
+            volume={volume}
+            onFrameUpdate={handleFrameUpdate}
+            onPlayStateChange={setIsPlaying}
+          />
+
+          {/* Frame-Accurate Scrubber & Transport Controls */}
+          <div className="p-4 rounded-2xl bg-bg-surface border border-border-DEFAULT space-y-3 shadow-md select-none">
+            {/* Draggable Progress Range Bar */}
+            <div className="space-y-1">
+              <input
+                type="range"
+                min={0}
+                max={totalFrames - 1}
+                value={currentFrame}
+                onChange={(e) => handleSeekToFrame(parseInt(e.target.value, 10))}
+                className="w-full h-1.5 bg-bg-surface3 rounded-lg appearance-none cursor-pointer accent-accent-brand focus:outline-none"
               />
             </div>
-          </div>
 
-          {/* Scene Scrubber Bar */}
-          <div className="p-4 rounded-xl bg-bg-surface border border-border-DEFAULT space-y-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold">
-              <span className="flex items-center gap-1.5">
-                <Layers size={14} className="text-accent-brand" />
-                Scene Timeline ({spec.scenes.length} Scenes)
-              </span>
-              <span>Click scene to scrub</span>
-            </div>
+            {/* Transport & Readouts Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+              {/* Playback Transport Buttons */}
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSeekToFrame(0)}
+                  className="h-8 w-8 p-0"
+                  title="Restart (Home)"
+                >
+                  <RotateCcw size={14} />
+                </Button>
 
-            <div className="grid grid-cols-7 gap-1.5">
-              {spec.scenes.map((scene, idx) => {
-                const isActive = idx === activeSceneIndex;
-                return (
-                  <button
-                    key={scene.id}
-                    onClick={() => handleSelectScene(idx)}
-                    className={`p-2 rounded-lg text-left transition-all border ${
-                      isActive
-                        ? 'bg-accent-brand/20 border-accent-brand text-white'
-                        : 'bg-bg-surface2 border-border-DEFAULT text-muted-foreground hover:border-border-strong hover:text-foreground'
-                    }`}
-                  >
-                    <div className="font-mono text-[10px] font-bold">0{scene.sceneNumber}</div>
-                    <div className="text-xs font-medium truncate capitalize">{scene.type}</div>
-                    <div className="text-[9px] font-mono opacity-60">
-                      {(scene.durationFrames / 30).toFixed(1)}s
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleStepFrame(-1)}
+                  className="h-8 w-8 p-0"
+                  title="Previous Frame (Left Arrow)"
+                >
+                  <ChevronLeft size={16} />
+                </Button>
 
-        {/* Right: AI Production Assistant & Scene Inspector (5 Cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Active Scene Inspector Card */}
-          <Card className="bg-bg-surface border-border-DEFAULT rounded-2xl">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sliders size={16} className="text-accent-brand" />
-                  Scene {currentScene.sceneNumber}: {currentScene.title}
-                </CardTitle>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                  Template: {currentScene.templateId} · Camera: {currentScene.camera?.type || 'push'}
-                </p>
+                <Button
+                  onClick={togglePlayPause}
+                  size="sm"
+                  className="h-8 px-3 bg-accent-brand hover:bg-accent-brand/90 text-white font-bold gap-1.5"
+                  title="Play / Pause (Space)"
+                >
+                  {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                  <span>{isPlaying ? 'Pause' : 'Play'}</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleStepFrame(1)}
+                  className="h-8 w-8 p-0"
+                  title="Next Frame (Right Arrow)"
+                >
+                  <ChevronRight size={16} />
+                </Button>
               </div>
-              <Badge variant="outline" className="text-xs font-mono uppercase">
-                {currentScene.type}
-              </Badge>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              {currentScene.narrationText && (
-                <div className="p-3 rounded-lg bg-bg-surface2 border border-border-DEFAULT">
-                  <span className="font-mono text-muted-foreground block mb-1 text-[10px] uppercase tracking-wider">
-                    Spoken Script
-                  </span>
-                  <p className="text-foreground italic leading-relaxed font-medium">
-                    "{currentScene.narrationText}"
-                  </p>
-                </div>
-              )}
 
-              {/* Dynamic Props Summary */}
-              {currentScene.props && (
-                <div className="p-3 rounded-lg bg-bg-surface2 border border-border-DEFAULT space-y-1">
-                  <span className="font-mono text-muted-foreground block mb-1 text-[10px] uppercase tracking-wider">
-                    Key Visual Props
-                  </span>
-                  {Object.entries(currentScene.props).slice(0, 3).map(([key, val]) => (
-                    <div key={key} className="flex justify-between font-mono text-[11px]">
-                      <span className="text-muted-foreground">{key}:</span>
-                      <span className="text-foreground truncate max-w-[200px]">
-                        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                      </span>
-                    </div>
+              {/* Exact Frame & Time Readouts */}
+              <div className="flex items-center gap-3 font-mono text-xs">
+                <div className="px-2.5 py-1 rounded-md bg-bg-surface2 border border-border-DEFAULT text-foreground font-bold">
+                  {formatTimecode(currentFrame)} / {formatTimecode(totalFrames)}
+                </div>
+                <div className="text-muted-foreground">
+                  Frame <span className="text-foreground font-semibold">{currentFrame}</span> / {totalFrames}
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
+                  {fps} FPS
+                </Badge>
+              </div>
+
+              {/* Playback Speeds & Audio Volume */}
+              <div className="flex items-center gap-2">
+                {/* Speed selector */}
+                <div className="flex items-center bg-bg-surface2 border border-border-DEFAULT rounded-lg p-0.5 text-[11px] font-mono">
+                  {([0.25, 0.5, 1, 1.5, 2] as const).map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => setPlaybackRate(rate)}
+                      className={`px-1.5 py-0.5 rounded transition-all ${
+                        playbackRate === rate
+                          ? 'bg-accent-brand text-white font-bold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {rate}x
+                    </button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* AI Production Assistant Chat & Live Modifier */}
-          <Card className="bg-bg-surface border-border-DEFAULT rounded-2xl flex flex-col h-[400px]">
-            <CardHeader className="pb-2 border-b border-border-DEFAULT flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wand2 size={16} className="text-emerald-400" />
-                <CardTitle className="text-sm font-bold">Claude Production Assistant</CardTitle>
-              </div>
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                Active Runtime
-              </span>
-            </CardHeader>
-
-            {/* Chat History */}
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
-              {aiHistory.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`p-3 rounded-xl text-xs leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-accent-brand/20 text-white border border-accent-brand/40 ml-6'
-                      : 'bg-bg-surface2 text-muted-foreground border border-border-DEFAULT mr-6'
-                  }`}
+                {/* Mute Toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMuted(!isMuted)}
+                  className={`h-8 w-8 p-0 ${isMuted ? 'text-red-400 border-red-500/30' : 'text-muted-foreground'}`}
+                  title={isMuted ? 'Unmute' : 'Mute'}
                 >
-                  {msg.text}
-                </div>
-              ))}
-              {isAiModifying && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                  <Loader2 size={14} className="animate-spin text-accent-brand" />
-                  Claude is modifying scene parameters...
-                </div>
-              )}
-            </CardContent>
+                  {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                </Button>
+              </div>
+            </div>
+          </div>
 
-            {/* Input form */}
-            <form onSubmit={handleAiSubmit} className="p-3 border-t border-border-DEFAULT flex gap-2">
-              <Input
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={`Prompt (e.g. "Make Scene ${currentScene.sceneNumber} more cinematic")`}
-                className="bg-bg-surface2 border-border-DEFAULT text-xs h-9"
-              />
-              <Button type="submit" size="sm" disabled={isAiModifying || !aiPrompt.trim()} className="gap-1.5">
-                <Sparkles size={14} />
-                Tweak
-              </Button>
-            </form>
-          </Card>
+          {/* Proportional Scene Timeline */}
+          <ProportionalTimeline
+            spec={spec}
+            currentFrame={currentFrame}
+            activeSceneIndex={activeSceneIndex}
+            onSelectScene={handleSelectScene}
+            onSeekToFrame={handleSeekToFrame}
+          />
+        </div>
+
+        {/* Right Column: Scene Inspector, Claude AI Modifier & Inspection Tabs (5 Cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Real-time Current Scene Inspector */}
+          <CurrentSceneInspector scene={currentScene} fps={fps} />
+
+          {/* Real-time Claude Iteration Assistant */}
+          <ClaudeIterationDrawer
+            currentSpec={spec}
+            activeSceneIndex={activeSceneIndex}
+            onSpecUpdate={handleSpecUpdateFromClaude}
+          />
         </div>
       </div>
+
+      {/* Bottom Inspection & Production Render Station */}
+      <div className="p-5 rounded-2xl bg-bg-surface border border-border-DEFAULT shadow-xl space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-DEFAULT pb-3">
+          <Tabs
+            value={activeTab}
+            onValueChange={(val) => setActiveTab(val as any)}
+            className="w-auto"
+          >
+            <TabsList className="bg-bg-surface2 border border-border-DEFAULT">
+              <TabsTrigger value="qa" className="text-xs font-semibold gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-400" />
+                Visual QA ({qaReport.score}/100)
+              </TabsTrigger>
+              <TabsTrigger value="captions" className="text-xs font-semibold gap-1.5">
+                <Layers size={13} className="text-amber-400" />
+                Captions
+              </TabsTrigger>
+              <TabsTrigger value="audio" className="text-xs font-semibold gap-1.5">
+                <Volume2 size={13} className="text-cyan-400" />
+                Audio & Ducking
+              </TabsTrigger>
+              {completedJob && (
+                <TabsTrigger value="render" className="text-xs font-semibold gap-1.5 text-emerald-400">
+                  <Film size={13} />
+                  Final MP4
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </Tabs>
+
+          {/* Render Checklist & Approval Gate */}
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium select-none">
+              <input
+                type="checkbox"
+                checked={humanApproved}
+                onChange={(e) => setHumanApproved(e.target.checked)}
+                className="w-4 h-4 rounded border-border-DEFAULT text-emerald-600 focus:ring-emerald-500 bg-bg-surface2"
+              />
+              <span className={humanApproved ? 'text-emerald-400 font-bold' : 'text-muted-foreground'}>
+                Human Visual Inspection Approved
+              </span>
+            </label>
+
+            <Button
+              onClick={handleTriggerRender}
+              disabled={isRendering || !humanApproved}
+              className={`gap-2 font-bold text-xs h-9 px-4 ${
+                humanApproved
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg'
+                  : 'bg-bg-surface3 text-muted-foreground opacity-60 cursor-not-allowed'
+              }`}
+            >
+              {isRendering ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {isRendering ? 'Rendering MP4...' : 'RENDER FINAL VIDEO'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Active Render Progress Bar if Rendering */}
+        {isRendering && (
+          <div className="p-4 rounded-xl bg-bg-surface2 border border-border-DEFAULT space-y-2">
+            <div className="flex justify-between text-xs font-mono font-bold text-foreground">
+              <span className="flex items-center gap-2 text-emerald-400">
+                <Loader2 size={14} className="animate-spin" />
+                {renderStage}
+              </span>
+              <span>{renderProgressPct}%</span>
+            </div>
+            <div className="w-full h-2 bg-bg-surface3 rounded-full overflow-hidden">
+              <div
+                style={{ width: `${renderProgressPct}%` }}
+                className="h-full bg-emerald-500 transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Tab Panels */}
+        <div>
+          {activeTab === 'qa' && <VisualQAPanel qaReport={qaReport} />}
+          {activeTab === 'captions' && (
+            <CaptionsInspector
+              words={spec.narration?.words}
+              currentFrame={currentFrame}
+              fps={fps}
+              brand={spec.brand}
+              onSeekToTimestamp={(sec) => handleSeekToFrame(Math.round(sec * fps))}
+            />
+          )}
+          {activeTab === 'audio' && (
+            <AudioInspector
+              audio={spec.audio}
+              narration={spec.narration}
+              currentFrame={currentFrame}
+              fps={fps}
+            />
+          )}
+          {activeTab === 'render' && completedJob && (
+            <FinalRenderComparison
+              jobId={completedJob.jobId}
+              publicUrl={completedJob.publicUrl}
+              spec={spec}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* New Video Modal */}
+      <NewVideoModal
+        open={isNewVideoModalOpen}
+        onOpenChange={setIsNewVideoModalOpen}
+        onVideoGenerated={handleSpecUpdateFromClaude}
+      />
     </div>
   );
 }

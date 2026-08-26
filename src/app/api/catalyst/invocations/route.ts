@@ -1,26 +1,37 @@
-import { NextResponse } from 'next/server'
-import { BedrockRuntimeClient, ListAsyncInvokesCommand } from '@aws-sdk/client-bedrock-runtime'
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' })
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_anon_key'
+);
 
 export async function GET() {
   try {
-    const res = await bedrock.send(new ListAsyncInvokesCommand({
-      maxResults: 20,
-      sortBy: 'SubmissionTime',
-      sortOrder: 'Descending',
-    }))
+    const { data: renderJobs, error } = await supabase
+      .from('render_jobs')
+      .select('*')
+      .order('requested_at', { ascending: false })
+      .limit(20);
 
-    const invocations = (res.asyncInvokeSummaries || []).map(inv => ({
-      arn: inv.invocationArn,
-      status: inv.status,
-      submitTime: inv.submitTime,
-      endTime: inv.endTime,
-    }))
+    if (error) {
+      return NextResponse.json({ invocations: [], in_progress: 0, total: 0 });
+    }
 
-    const inProgress = invocations.filter(i => i.status === 'InProgress')
-    return NextResponse.json({ invocations, in_progress: inProgress.length, total: invocations.length })
+    const invocations = (renderJobs || []).map((j: any) => ({
+      arn: j.render_id || j.job_id,
+      status: j.status,
+      submitTime: j.requested_at,
+      endTime: j.completed_at,
+    }));
+
+    const inProgress = invocations.filter((i: any) => i.status === 'RENDERING' || i.status === 'QUEUED');
+    return NextResponse.json({
+      invocations,
+      in_progress: inProgress.length,
+      total: invocations.length,
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

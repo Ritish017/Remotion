@@ -7,8 +7,13 @@ export class NarrationFactory {
   private static localSynth = new LocalSynthesizerProvider();
 
   public static async generate(request: NarrationRequest): Promise<NarrationResponse> {
+    const isProduction =
+      process.env.NARRATION_MODE === 'production' ||
+      process.env.APP_ENV === 'production' ||
+      process.env.NODE_ENV === 'production';
+
     if (this.openaiAudio.isConfigured) {
-      console.log(`🎙️ [NarrationFactory] Generating real neural voiceover via OpenAI TTS (${request.voiceId || 'onyx'})...`);
+      console.log(`🎙️ [NarrationFactory] Generating neural voiceover via OpenAI TTS (${request.voiceId || 'onyx'})...`);
       try {
         const result = await this.openaiAudio.synthesize({
           transcript: request.transcript,
@@ -34,11 +39,19 @@ export class NarrationFactory {
           metadata: { model: 'tts-1', voice: request.voiceId || 'onyx', transcription: 'whisper-1' },
         };
       } catch (e: any) {
-        console.warn(`[NarrationFactory] OpenAI TTS error (${e.message}). Falling back to local synthesizer.`);
+        if (isProduction) {
+          console.error(`❌ [NarrationFactory] Production Narration Failure: ${e.message}`);
+          throw new Error(`Production narration failed: ${e.message}`);
+        }
+        console.warn(`[NarrationFactory] OpenAI TTS warning (${e.message}). Falling back to local synthesizer for development.`);
       }
+    } else if (isProduction) {
+      throw new Error(
+        'Production Narration Configuration Error: OPENAI_API_KEY is missing. Local synthesizer is disallowed in production.'
+      );
     }
 
-    console.log('[NarrationFactory] Using Local Synthesizer fallback.');
+    console.log('[NarrationFactory] Using Local Synthesizer fallback (development mode only).');
     return this.localSynth.generateNarration(request);
   }
 }

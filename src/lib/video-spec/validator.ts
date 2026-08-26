@@ -39,13 +39,51 @@ export function validateVideoSpec(data: unknown): ValidationResult {
     warnings.push(`Composition duration (${spec.composition.durationInFrames}f) does not match total scene duration (${currentFrame}f). Adjusting composition duration.`);
   }
 
-  // Auto-repair spec to guarantee flawless rendering
+  // Auto-repair spec and visual beats to guarantee flawless rendering
   const repairedScenes = spec.scenes.map((scene, idx) => {
     const prevDuration = spec.scenes.slice(0, idx).reduce((sum, s) => sum + s.durationFrames, 0);
+    
+    // Normalize visual beats if present
+    let repairedBeats = scene.visualBeats;
+    if (repairedBeats && repairedBeats.length > 0) {
+      let beatCurrentFrame = 0;
+      repairedBeats = repairedBeats.map((beat, bIdx) => {
+        const beatDur = Math.max(1, beat.durationInFrames);
+        const beatObj = {
+          ...beat,
+          beatIndex: bIdx,
+          startFrame: beatCurrentFrame,
+          durationInFrames: beatDur,
+        };
+        beatCurrentFrame += beatDur;
+        return beatObj;
+      });
+
+      // If total beat duration differs from scene duration, normalize
+      if (beatCurrentFrame !== scene.durationFrames && beatCurrentFrame > 0) {
+        const ratio = scene.durationFrames / beatCurrentFrame;
+        let cumulative = 0;
+        repairedBeats = repairedBeats.map((beat, bIdx) => {
+          const isLast = bIdx === repairedBeats!.length - 1;
+          const adjustedDur = isLast
+            ? Math.max(1, scene.durationFrames - cumulative)
+            : Math.max(1, Math.round(beat.durationInFrames * ratio));
+          const adjustedBeat = {
+            ...beat,
+            startFrame: cumulative,
+            durationInFrames: adjustedDur,
+          };
+          cumulative += adjustedDur;
+          return adjustedBeat;
+        });
+      }
+    }
+
     return {
       ...scene,
       startFrame: prevDuration,
       sceneNumber: idx + 1,
+      visualBeats: repairedBeats,
     };
   });
 
@@ -53,6 +91,8 @@ export function validateVideoSpec(data: unknown): ValidationResult {
 
   const repairedSpec: VideoSpec = {
     ...spec,
+    version: spec.version || '2.0.0',
+    motionSeed: spec.motionSeed ?? 42,
     scenes: repairedScenes,
     composition: {
       ...spec.composition,

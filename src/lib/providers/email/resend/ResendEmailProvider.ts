@@ -146,13 +146,32 @@ export class ResendEmailProvider implements IEmailProvider {
       };
     }
 
-    return {
-      provider: 'Resend Email API',
-      configured: true,
-      reachable: true,
-      authenticated: true,
-      latencyMs: Date.now() - startTime,
-      lastChecked: new Date().toISOString(),
-    };
+    try {
+      const res = await fetch('https://api.resend.com/api-keys', {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+
+      return {
+        provider: 'Resend Email API',
+        configured: true,
+        reachable: true,
+        authenticated: res.ok,
+        latencyMs: Date.now() - startTime,
+        lastChecked: new Date().toISOString(),
+        error: res.ok ? undefined : `HTTP ${res.status}`,
+      };
+    } catch (e: any) {
+      return {
+        provider: 'Resend Email API',
+        configured: true,
+        reachable: false,
+        authenticated: false,
+        latencyMs: Date.now() - startTime,
+        lastChecked: new Date().toISOString(),
+        error: e.message,
+      };
+    }
   }
 }

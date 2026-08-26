@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AIGenerateOptions, AIGenerateResult, AIMessage, IAIProvider, ImageAnalysisOptions, ProviderHealth } from '../types';
+import { repairJsonString } from '../claude/ClaudeProvider';
 
 export class GeminiProvider implements IAIProvider {
   readonly id = 'gemini';
@@ -13,7 +14,7 @@ export class GeminiProvider implements IAIProvider {
   }
 
   private getModel(options?: AIGenerateOptions): string {
-    return options?.model || process.env.GEMINI_MODEL_PRIMARY || 'gemini-3.7-flash';
+    return options?.model || process.env.GEMINI_MODEL_PRIMARY || 'gemini-1.5-flash';
   }
 
   async generate(prompt: string | AIMessage[], options?: AIGenerateOptions): Promise<AIGenerateResult> {
@@ -23,7 +24,8 @@ export class GeminiProvider implements IAIProvider {
 
     const startTime = Date.now();
     const model = this.getModel(options);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+    // Secure URL without API key in query params - authenticated via x-goog-api-key header
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     let contents: any[] = [];
     if (typeof prompt === 'string') {
@@ -37,7 +39,10 @@ export class GeminiProvider implements IAIProvider {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
       body: JSON.stringify({
         contents,
         generationConfig: {
@@ -68,17 +73,19 @@ export class GeminiProvider implements IAIProvider {
     };
   }
 
-  async generateStructured<T>(prompt: string | AIMessage[], schema: z.ZodSchema<T>, options?: AIGenerateOptions): Promise<{ data: T; result: AIGenerateResult }> {
-    const jsonPrompt = typeof prompt === 'string'
-      ? `${prompt}\n\nRespond with valid JSON ONLY matching the requested structure.`
-      : prompt;
+  async generateStructured<T>(
+    prompt: string | AIMessage[],
+    schema: z.ZodSchema<T>,
+    options?: AIGenerateOptions
+  ): Promise<{ data: T; result: AIGenerateResult }> {
+    const jsonPrompt =
+      typeof prompt === 'string'
+        ? `${prompt}\n\nRespond with valid JSON ONLY matching the requested structure.`
+        : prompt;
 
     const result = await this.generate(jsonPrompt, options);
-    let raw = result.text.trim();
-    if (raw.startsWith('```json')) raw = raw.replace(/^```json/, '').replace(/```$/, '').trim();
-    else if (raw.startsWith('```')) raw = raw.replace(/^```/, '').replace(/```$/, '').trim();
-
-    const parsed = JSON.parse(raw);
+    const repaired = repairJsonString(result.text);
+    const parsed = JSON.parse(repaired);
     const data = schema.parse(parsed);
 
     return { data, result: { ...result, structured: data } };
@@ -91,7 +98,7 @@ export class GeminiProvider implements IAIProvider {
 
     const startTime = Date.now();
     const model = options.model || this.getModel();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     const imgRes = await fetch(options.imageUrl);
     const arrayBuffer = await imgRes.arrayBuffer();
@@ -100,7 +107,10 @@ export class GeminiProvider implements IAIProvider {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
       body: JSON.stringify({
         contents: [
           {
@@ -153,8 +163,14 @@ export class GeminiProvider implements IAIProvider {
     }
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`;
-      const res = await fetch(url);
+      // Secure authenticated health check using header
+      const url = `https://generativelanguage.googleapis.com/v1beta/models`;
+      const res = await fetch(url, {
+        headers: {
+          'x-goog-api-key': this.apiKey,
+        },
+      });
+
       return {
         provider: 'Google Gemini',
         configured: true,

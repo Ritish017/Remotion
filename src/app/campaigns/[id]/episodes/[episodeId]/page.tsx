@@ -746,6 +746,7 @@ function VideoPanel({ episodeId, campaignType, topic, script, jobId, videoUrl, o
       {engineMode === 'remotion' ? (
         <RemotionProductionStudio
           initialSpec={SAMPLE_SHOWCASE_SPEC}
+          episodeTitle={topic || 'Episode Video'}
           onSpecChange={async (updatedSpec) => {
             await updateEpisode(episodeId, {
               video_job_id: updatedSpec.id,

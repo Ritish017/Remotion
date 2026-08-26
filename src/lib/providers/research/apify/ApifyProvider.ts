@@ -26,11 +26,15 @@ export class ApifyProvider implements IApifyProvider {
     }
 
     const formattedActor = encodeURIComponent(actorId.replace('/', '~'));
-    const url = `https://api.apify.com/v2/acts/${formattedActor}/run-sync-get-dataset-items?token=${this.apiToken}`;
+    // Secure URL: token passed in Authorization header, never exposed in URL query parameters
+    const url = `https://api.apify.com/v2/acts/${formattedActor}/run-sync-get-dataset-items`;
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(input),
     });
 
@@ -61,12 +65,12 @@ export class ApifyProvider implements IApifyProvider {
 
       return {
         source: 'Apify Google Search Scraper',
-        items,
-        totalResults: items.length,
+        items: Array.isArray(items) ? items : [],
+        totalResults: Array.isArray(items) ? items.length : 0,
         retrievedAt: new Date().toISOString(),
       };
     } catch (e: any) {
-      console.warn('[Apify] Search error:', e.message);
+      console.warn('[Apify] Search notice:', e.message);
       return {
         source: 'Apify',
         items: [],
@@ -91,7 +95,13 @@ export class ApifyProvider implements IApifyProvider {
     }
 
     try {
-      const res = await fetch(`https://api.apify.com/v2/users/me?token=${this.apiToken}`);
+      // Secure authenticated health check using header
+      const res = await fetch('https://api.apify.com/v2/users/me', {
+        headers: {
+          Authorization: `Bearer ${this.apiToken}`,
+        },
+      });
+
       return {
         provider: 'Apify',
         configured: true,

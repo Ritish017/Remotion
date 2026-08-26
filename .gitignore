@@ -45,9 +45,15 @@ next-env.d.ts
 __pycache__/
 jobs/
 
-# Generated local audio / video
+# Generated local audio / video / storage
 public/audio/*.wav
 public/audio/*.mp3
+*.mp4
+storage/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # MCP config (contains access tokens)
 .mcp.json

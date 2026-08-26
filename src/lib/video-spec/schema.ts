@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { VisualBeatSchema } from './visual';
 
 export const MotionConfigSchema = z.object({
   entrance: z.enum([
@@ -31,17 +32,39 @@ export const MotionConfigSchema = z.object({
 });
 
 export const CameraConfigSchema = z.object({
-  type: z.enum([
-    'push',
-    'pull',
-    'pan-left',
-    'pan-right',
-    'zoom-region',
-    'subtle-shake',
-    'parallax',
-    'static'
+  type: z.union([
+    z.enum([
+      'push',
+      'pull',
+      'pan',
+      'pan-left',
+      'pan-right',
+      'pan-up',
+      'pan-down',
+      'zoom-in',
+      'zoom-out',
+      'zoom-region',
+      'subtle-shake',
+      'parallax',
+      'orbit',
+      'rack-focus',
+      'handheld',
+      'micro-drift',
+      'whip-pan',
+      'snap-zoom',
+      'tilt',
+      'static'
+    ]),
+    z.string()
   ]).default('push'),
+  movement: z.string().optional(),
   intensity: z.number().min(0).max(1).optional().default(0.15),
+  startScale: z.number().optional().default(1.0),
+  endScale: z.number().optional().default(1.12),
+  xMovement: z.number().optional().default(0),
+  yMovement: z.number().optional().default(0),
+  rotation: z.number().optional().default(0),
+  focusTarget: z.string().optional(),
   focalPoint: z.object({
     x: z.number().min(0).max(100),
     y: z.number().min(0).max(100)
@@ -119,6 +142,78 @@ export const LayerDataSchema = z.object({
   styling: z.record(z.string(), z.any()).optional(),
 });
 
+export const ResearchSourceSchema = z.object({
+  sourceId: z.string(),
+  title: z.string(),
+  url: z.string().optional(),
+  publisher: z.string().optional(),
+  publishDate: z.string().optional(),
+});
+
+export const ResearchFactSchema = z.object({
+  factId: z.string(),
+  sourceId: z.string(),
+  claim: z.string(),
+  confidence: z.number().min(0).max(1).default(1.0),
+  category: z.string().optional(),
+});
+
+export const FactClaimSchema = z.object({
+  claimId: z.string(),
+  text: z.string(),
+  sourceId: z.string().optional(),
+  factId: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+export const StoryboardAssetSchema = z.object({
+  type: z.string(),
+  query: z.string().optional(),
+  role: z.enum(['foreground', 'midground', 'background', 'data', 'texture', 'subject']).default('subject'),
+  importance: z.number().min(0).max(1).optional().default(1.0),
+  url: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const StoryboardCompositionSchema = z.object({
+  layout: z.string().optional(),
+  subjectPosition: z.string().optional(),
+  scale: z.number().optional().default(1.0),
+  crop: z.string().optional(),
+  focalPoint: z.union([
+    z.string(),
+    z.object({ x: z.number(), y: z.number() })
+  ]).optional(),
+  negativeSpace: z.string().optional(),
+});
+
+export const StoryboardLayerSchema = z.object({
+  role: z.string(),
+  asset: z.string().optional(),
+  assetUrl: z.string().optional(),
+  depth: z.number().optional().default(0),
+  opacity: z.number().min(0).max(1).optional().default(1),
+});
+
+export const StoryboardTypographySchema = z.object({
+  headline: z.string().optional(),
+  supportingText: z.string().optional(),
+  hierarchy: z.string().optional(),
+  position: z.string().optional(),
+  animation: z.string().optional(),
+  emphasisWords: z.array(z.string()).optional().default([]),
+});
+
+export const StoryboardTransitionSchema = z.object({
+  in: z.string().optional(),
+  out: z.string().optional(),
+  motivation: z.string().optional(),
+  type: z.enum(['fade', 'slide', 'wipe', 'flip', 'match-cut', 'zoom-through', 'none']).optional().default('fade'),
+  durationFrames: z.number().nonnegative().optional().default(12),
+  sharedGeometry: z.string().optional(),
+  direction: z.string().optional(),
+});
+
 export const SceneDataSchema = z.object({
   id: z.string(),
   sceneNumber: z.number().int().positive(),
@@ -142,13 +237,29 @@ export const SceneDataSchema = z.object({
   narrationText: z.string().optional(),
   narrationStart: z.number().nonnegative().optional(),
   narrationEnd: z.number().nonnegative().optional(),
-  camera: CameraConfigSchema.optional(),
+  claimIds: z.array(z.string()).optional(),
+  
+  // Visual Storyboard Director Fields
+  visualIntent: z.string().optional(),
+  visualType: z.string().optional(),
+  primarySubject: z.string().optional(),
+  visualMetaphor: z.string().optional(),
+  assets: z.array(StoryboardAssetSchema).optional(),
+  composition: StoryboardCompositionSchema.optional(),
+  layers: z.array(StoryboardLayerSchema).optional(),
+  camera: z.union([CameraConfigSchema, z.record(z.string(), z.any())]).optional(),
+  typography: StoryboardTypographySchema.optional(),
+  dataVisualization: z.any().optional(),
+  transition: StoryboardTransitionSchema.optional(),
+  
   background: LayerDataSchema.optional(),
   midground: LayerDataSchema.optional(),
   foreground: LayerDataSchema.optional(),
+  visualLanguage: z.string().optional(),
+  visualBeats: z.array(VisualBeatSchema).optional(),
   props: z.record(z.string(), z.any()).optional().default({}),
   transitionToNext: z.object({
-    type: z.enum(['fade', 'slide', 'wipe', 'flip', 'none']).default('fade'),
+    type: z.enum(['fade', 'slide', 'wipe', 'flip', 'match-cut', 'zoom-through', 'none']).default('fade'),
     durationFrames: z.number().nonnegative().default(12),
   }).optional(),
 });
@@ -170,10 +281,14 @@ export const AudioSystemSpecSchema = z.object({
 });
 
 export const VideoSpecSchema = z.object({
-  version: z.string().default('1.0.0'),
+  version: z.string().default('2.0.0'),
   id: z.string(),
   title: z.string(),
   description: z.string().optional(),
+  motionSeed: z.number().int().optional().default(42),
+  research_sources: z.array(ResearchSourceSchema).optional().default([]),
+  research_facts: z.array(ResearchFactSchema).optional().default([]),
+  claims: z.array(FactClaimSchema).optional().default([]),
   composition: z.object({
     format: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
     width: z.number().positive().default(1080),
@@ -199,7 +314,7 @@ export const VideoSpecSchema = z.object({
   metadata: z.object({
     topic: z.string().optional(),
     targetPlatform: z.string().optional(),
-    targetAudience: z.string().optional(),
+    vertical: z.string().optional(),
     generatedAt: z.string().optional(),
     versionTag: z.string().optional(),
   }).optional(),

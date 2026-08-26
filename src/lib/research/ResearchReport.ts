@@ -21,7 +21,7 @@ export class ResearchReport implements IResearchReport {
   public readonly evidence: ResearchEvidence;
   public readonly generatedAt: string;
 
-  constructor(data: IResearchReport) {
+  constructor(data: Omit<IResearchReport, 'id' | 'generatedAt'> & { id?: string; generatedAt?: string }) {
     this.id = data.id || `rep_${Date.now()}`;
     this.topic = data.topic;
     this.executiveSummary = data.executiveSummary;

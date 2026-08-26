@@ -81,12 +81,37 @@ CREATE TABLE research_cache (
   fetched_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Remotion Render Jobs (Persisted Cloud Render Lifecycle)
+CREATE TABLE render_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_id TEXT UNIQUE NOT NULL,
+  content_id TEXT,
+  spec_id TEXT,
+  composition_id TEXT,
+  status TEXT NOT NULL CHECK (status IN ('QUEUED', 'RENDERING', 'COMPLETED', 'FAILED')),
+  render_id TEXT,
+  bucket TEXT,
+  output_key TEXT,
+  output_url TEXT,
+  download_url TEXT,
+  error_code TEXT,
+  error_message TEXT,
+  requested_at TIMESTAMPTZ DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  spec JSONB,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable RLS
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE episodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE research_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE render_jobs ENABLE ROW LEVEL SECURITY;
 
 -- Open policies for single-user app (tighten for multi-user)
 CREATE POLICY "Allow all" ON campaigns FOR ALL USING (true);
@@ -94,3 +119,4 @@ CREATE POLICY "Allow all" ON episodes FOR ALL USING (true);
 CREATE POLICY "Allow all" ON platform_posts FOR ALL USING (true);
 CREATE POLICY "Allow all" ON analytics FOR ALL USING (true);
 CREATE POLICY "Allow all" ON research_cache FOR ALL USING (true);
+CREATE POLICY "Allow all" ON render_jobs FOR ALL USING (true);

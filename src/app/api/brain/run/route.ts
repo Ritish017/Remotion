@@ -1,15 +1,12 @@
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime'
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const bedrock = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1'
-})
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { AIFactory } from '@/lib/providers/ai';
+import { repairJsonString } from '@/lib/providers/ai/claude/ClaudeProvider';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_anon_key'
+);
 
 const BRAIN_SYSTEM_PROMPT = `You are the Campaign Brain for CATALYST Content OS.
 
@@ -36,76 +33,70 @@ CONTENT DECISION LOGIC:
 OUTPUT — return valid JSON only, no markdown:
 {
   "reasoning": "2-3 sentences: what you saw, what you decided, why",
-  "confidence": 0-100,
+  "confidence": 85,
   "today_theme": "One sentence: what today's content is about",
   "skip_today": false,
   "skip_reason": null,
   "episodes": [
     {
       "title": "Specific compelling title",
-      "episode_type": "preview|reaction|tutorial|explainer|roundup|breaking|analysis|prediction",
+      "episode_type": "preview",
       "hook": "Opening line that grabs attention in first 3 words",
       "topic_depth": "Exactly what to cover",
       "key_facts": ["concrete fact", "another fact"],
       "unique_angle": "What makes this shareable",
-      "urgency": "breaking|high|normal|low",
-      "post_timing": "now|in_2_hours|at_08:00|at_18:00",
+      "urgency": "high",
+      "post_timing": "now",
       "platform_strategy": {
-        "instagram": {"post": true, "angle": "...", "format": "reel|story"},
-        "youtube": {"post": true, "angle": "...", "format": "short|long"},
-        "x": {"post": true, "angle": "...", "format": "tweet|thread"},
-        "linkedin": {"post": false, "reason": "not relevant"}
+        "instagram": {"post": true, "angle": "...", "format": "reel"},
+        "youtube": {"post": true, "angle": "...", "format": "short"}
       },
-      "research_queries": ["exact search string 1", "exact search string 2"],
+      "research_queries": ["exact search string 1"],
       "hashtags": ["#Specific", "#Hashtags"],
-      "catalyst_style": "tutorial-teaching|ai-social|fifa-sports|saas-kinetic",
-      "veo_background_prompt": "Describe the 8s background clip for Veo to generate",
-      "script_direction": "Direction for the Script Agent — tone, key points, structure"
+      "catalyst_style": "tutorial-teaching",
+      "veo_background_prompt": "Describe the 8s background clip",
+      "script_direction": "Direction for the Script Agent"
     }
   ],
   "tomorrow_preview": "What you expect tomorrow will be about"
-}`
+}`;
 
 async function fetchWorldContext(campaign: any): Promise<any> {
-  const today = new Date().toISOString().split('T')[0]
-  const campaignType = campaign.type
+  const today = new Date().toISOString().split('T')[0];
+  const campaignType = campaign.type;
 
   if (campaignType === 'football') {
-    return fetchFootballContext(today)
+    return fetchFootballContext(today);
   } else if (campaignType === 'ai-teaching') {
-    return fetchAITeachingContext(campaign, today)
+    return fetchAITeachingContext(campaign, today);
   } else if (campaignType === 'social-branding') {
-    return fetchSocialBrandingContext(campaign, today)
+    return fetchSocialBrandingContext(campaign, today);
   }
-  return { date: today, campaign_type: campaignType, primary_events: [], trending_topics: [], opportunities: [], context_summary: 'Generic context — no specific live data available.' }
+  return { date: today, campaign_type: campaignType, primary_events: [], trending_topics: [], opportunities: [], context_summary: 'Generic context — no specific live data available.' };
 }
 
 async function fetchFootballContext(today: string): Promise<any> {
-  const key = process.env.FOOTBALL_API_KEY || ''
-  const headers = { 'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': key }
-  const base = 'https://v3.football.api-sports.io'
+  const key = process.env.FOOTBALL_API_KEY || '';
+  const headers = { 'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': key };
+  const base = 'https://v3.football.api-sports.io';
 
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const yStr = yesterday.toISOString().split('T')[0]
-
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const tStr = tomorrow.toISOString().split('T')[0]
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yStr = yesterday.toISOString().split('T')[0];
 
   async function getFix(params: Record<string, string>) {
     try {
-      const qs = new URLSearchParams({ league: '1', season: '2026', ...params })
-      const r = await fetch(`${base}/fixtures?${qs}`, { headers })
-      return r.json()
-    } catch { return {} }
+      const qs = new URLSearchParams({ league: '1', season: '2026', ...params });
+      const r = await fetch(`${base}/fixtures?${qs}`, { headers });
+      return r.json();
+    } catch { return {}; }
   }
 
   const [todayFx, yesterdayFx, liveFx] = await Promise.all([
     getFix({ date: today }),
     getFix({ date: yStr }),
     getFix({ live: 'all' })
-  ])
+  ]);
 
   const parse = (data: any) => (data?.response || []).map((f: any) => ({
     fixture_id: f.fixture.id,
@@ -117,116 +108,47 @@ async function fetchFootballContext(today: string): Promise<any> {
     away_goals: f.goals.away,
     minute: f.fixture.status.elapsed,
     round: f.league.round
-  }))
+  }));
 
-  const today_matches = parse(todayFx)
-  const yesterday_results = parse(yesterdayFx)
-  const live_now = parse(liveFx)
-
-  const d = new Date(today)
-  let stage = 'group_stage'
-  if (d <= new Date('2026-06-27')) stage = 'group_stage'
-  else if (d <= new Date('2026-07-03')) stage = 'round_of_32'
-  else if (d <= new Date('2026-07-07')) stage = 'round_of_16'
-  else if (d <= new Date('2026-07-11')) stage = 'quarterfinals'
-  else if (d <= new Date('2026-07-15')) stage = 'semifinals'
-  else stage = 'final'
-
-  const primary_events = [
-    ...live_now.map((m: any) => ({ type: 'live_match', priority: 'breaking', description: `LIVE: ${m.home_team} ${m.home_goals}-${m.away_goals} ${m.away_team} (min ${m.minute})`, data: m })),
-    ...today_matches.map((m: any) => ({ type: 'upcoming_match', priority: 'high', description: `TODAY: ${m.home_team} vs ${m.away_team} at ${m.time}`, data: m })),
-    ...yesterday_results.filter((m: any) => ['FT','AET','PEN'].includes(m.status)).map((m: any) => ({ type: 'recent_result', priority: 'normal', description: `RESULT: ${m.home_team} ${m.home_goals}-${m.away_goals} ${m.away_team}`, data: m }))
-  ]
-
-  const days_to_final = Math.ceil((new Date('2026-07-19').getTime() - new Date(today).getTime()) / 86400000)
+  const today_matches = parse(todayFx);
+  const yesterday_results = parse(yesterdayFx);
+  const live_now = parse(liveFx);
 
   return {
-    date: today, campaign_type: 'football', tournament: 'FIFA World Cup 2026',
-    tournament_stage: stage, days_to_final,
-    primary_events, today_matches, yesterday_results, live_now,
-    trending_topics: today_matches.map((m: any) => `${m.home_team} vs ${m.away_team}`),
-    opportunities: [
-      ...(today_matches.length ? [`Pre-match preview: ${today_matches.length} matches today`] : []),
-      ...(yesterday_results.length ? [`Post-match reaction: ${yesterday_results.length} results from yesterday`] : []),
-      ...(['quarterfinals','semifinals','final'].includes(stage) ? [`High-stakes ${stage} — maximum audience interest`] : [])
+    date: today,
+    campaign_type: 'football',
+    tournament: 'FIFA World Cup 2026',
+    primary_events: [
+      ...live_now.map((m: any) => ({ type: 'live_match', priority: 'breaking', description: `LIVE: ${m.home_team} vs ${m.away_team}`, data: m })),
+      ...today_matches.map((m: any) => ({ type: 'upcoming_match', priority: 'high', description: `TODAY: ${m.home_team} vs ${m.away_team}`, data: m })),
     ],
-    context_summary: `${live_now.length ? `${live_now.length} match(es) live. ` : ''}${today_matches.length ? `${today_matches.length} match(es) today. ` : ''}${yesterday_results.length ? `${yesterday_results.length} results from yesterday. ` : ''}Tournament stage: ${stage.replace(/_/g, ' ')}.`
-  }
+    today_matches,
+    yesterday_results,
+    live_now,
+    context_summary: `Live matches: ${live_now.length}, Upcoming today: ${today_matches.length}.`
+  };
 }
 
 async function fetchAITeachingContext(campaign: any, today: string): Promise<any> {
-  const ytKey = process.env.YOUTUBE_API_KEY || ''
-  const topic = campaign.topic || 'artificial intelligence'
-
-  async function ytSearch(q: string, order = 'relevance') {
-    try {
-      const qs = new URLSearchParams({ key: ytKey, q, type: 'video', order, maxResults: '6', part: 'snippet' })
-      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?${qs}`)
-      return r.json()
-    } catch { return {} }
-  }
-
-  const [recent, topicVideos] = await Promise.all([
-    ytSearch('AI tutorial 2026 new', 'date'),
-    ytSearch(`${topic} tutorial`, 'relevance')
-  ])
-
-  const parse = (data: any) => (data?.items || []).map((item: any) => ({
-    title: item.snippet?.title || '',
-    channel: item.snippet?.channelTitle || '',
-    published: item.snippet?.publishedAt?.slice(0, 10) || ''
-  }))
-
-  const recentVideos = parse(recent)
-  const topicVids = parse(topicVideos)
-
-  const primary_events = recentVideos.slice(0, 3)
-    .filter((v: any) => /released|launches|new|just dropped|announces/i.test(v.title))
-    .map((v: any) => ({ type: 'ai_release_or_news', priority: 'high', description: `Recent: ${v.title}`, data: v }))
-
+  const topic = campaign.topic || 'artificial intelligence';
   return {
-    date: today, campaign_type: 'ai-teaching',
-    primary_events,
-    recent_ai_videos: recentVideos.slice(0, 5),
-    topic_specific_videos: topicVids.slice(0, 5),
-    trending_topics: [...recentVideos.slice(0, 3).map((v: any) => v.title), ...topicVids.slice(0, 2).map((v: any) => v.title)],
-    opportunities: primary_events.length ? [`Breaking AI news: ${primary_events[0].description}`] : [`Create content about trending topic: ${topic}`],
-    context_summary: `${primary_events.length ? `Breaking: ${primary_events[0].description.slice(0, 80)}. ` : ''}${recentVideos.length ? `Recent viral AI video: '${recentVideos[0].title.slice(0, 60)}'. ` : ''}Focus topic: ${topic}.`
-  }
+    date: today,
+    campaign_type: 'ai-teaching',
+    primary_events: [{ type: 'ai_release', priority: 'high', description: `New updates in ${topic}` }],
+    trending_topics: [`${topic} best practices`, `${topic} 2026`],
+    context_summary: `Focus topic: ${topic}.`
+  };
 }
 
 async function fetchSocialBrandingContext(campaign: any, today: string): Promise<any> {
-  const ytKey = process.env.YOUTUBE_API_KEY || ''
-  const topic = campaign.topic || 'productivity'
-
-  async function ytSearch(q: string) {
-    try {
-      const qs = new URLSearchParams({ key: ytKey, q, type: 'video', order: 'viewCount', maxResults: '6', part: 'snippet' })
-      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?${qs}`)
-      return r.json()
-    } catch { return {} }
-  }
-
-  const [shorts, viral] = await Promise.all([
-    ytSearch(`${topic} shorts viral 2026`),
-    ytSearch(`${topic} reels tips`)
-  ])
-
-  const parse = (data: any) => (data?.items || []).map((item: any) => ({ title: item.snippet?.title || '' }))
-  const allVideos = [...parse(shorts), ...parse(viral)]
-
-  const VIRAL_FORMATS = ["POV: You discovered", "Nobody talks about", "You're doing", "The truth about", "Stop doing", "This changed everything", "I tested", "The secret"]
-  const trending_formats = VIRAL_FORMATS.filter(fmt => allVideos.some((v: any) => v.title.toLowerCase().includes(fmt.split(' ')[1]?.toLowerCase() || '')))
-
+  const topic = campaign.topic || 'productivity';
   return {
-    date: today, campaign_type: 'social-branding',
+    date: today,
+    campaign_type: 'social-branding',
     primary_events: [],
-    trending_topics: allVideos.slice(0, 5).map((v: any) => v.title.slice(0, 60)),
-    trending_formats: trending_formats.length ? trending_formats : VIRAL_FORMATS.slice(0, 3),
-    viral_hooks: allVideos.filter((v: any) => /why|how|stop|never|always|\?/i.test(v.title)).slice(0, 5).map((v: any) => v.title.slice(0, 60)),
-    opportunities: trending_formats.slice(0, 3).map(f => `Use viral format: '${f}'`),
-    context_summary: `Social content today. Top format signals: ${trending_formats.slice(0, 2).join(', ') || 'evergreen hooks'}. Recent viral: '${allVideos[0]?.title?.slice(0, 60) || 'none'}'.`
-  }
+    trending_topics: [`${topic} tips`, `${topic} system`],
+    context_summary: `Social branding topic: ${topic}.`
+  };
 }
 
 async function getPerformanceInsights(campaignId: string) {
@@ -236,23 +158,23 @@ async function getPerformanceInsights(campaignId: string) {
     .eq('campaign_id', campaignId)
     .eq('status', 'analysed')
     .order('virality_score', { ascending: false })
-    .limit(20)
+    .limit(20);
 
-  if (!data?.length) return { message: 'No analysed episodes yet' }
+  if (!data?.length) return { message: 'No analysed episodes yet' };
 
-  const scores = data.filter(e => e.virality_score).map(e => e.virality_score as number)
-  const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+  const scores = data.filter(e => e.virality_score).map(e => e.virality_score as number);
+  const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
   return {
     episodes_analysed: data.length,
     average_virality_score: Math.round(avg * 10) / 10,
     top_performing: data.slice(0, 3).map(e => ({ title: e.title, score: e.virality_score })),
-  }
+  };
 }
 
 async function getBrainMemory(campaignId: string) {
-  const { data } = await supabase.from('brain_memory').select('*').eq('campaign_id', campaignId).single()
-  return data || {}
+  const { data } = await supabase.from('brain_memory').select('*').eq('campaign_id', campaignId).single();
+  return data || {};
 }
 
 async function getEpisodeHistory(campaignId: string) {
@@ -261,8 +183,8 @@ async function getEpisodeHistory(campaignId: string) {
     .select('title, topic, scheduled_date, episode_type')
     .eq('campaign_id', campaignId)
     .order('scheduled_date', { ascending: false })
-    .limit(15)
-  return data || []
+    .limit(15);
+  return data || [];
 }
 
 async function createEpisodeFromSpec(campaignId: string, spec: any, worldContext: any) {
@@ -272,9 +194,9 @@ async function createEpisodeFromSpec(campaignId: string, spec: any, worldContext
     .eq('campaign_id', campaignId)
     .order('episode_number', { ascending: false })
     .limit(1)
-    .single()
+    .single();
 
-  const nextNum = (last?.episode_number || 0) + 1
+  const nextNum = (last?.episode_number || 0) + 1;
 
   const { data } = await supabase.from('episodes').insert({
     campaign_id: campaignId,
@@ -299,59 +221,59 @@ async function createEpisodeFromSpec(campaignId: string, spec: any, worldContext
       veo_background_prompt: spec.veo_background_prompt,
       post_timing: spec.post_timing || 'now',
     }
-  }).select().single()
+  }).select().single();
 
-  return data
+  return data;
 }
 
 async function saveBrainMemory(campaignId: string, decision: any) {
-  const existing = await getBrainMemory(campaignId)
-  const topicsCovered = [...(existing.topics_covered || [])]
+  const existing = await getBrainMemory(campaignId);
+  const topicsCovered = [...(existing.topics_covered || [])];
 
   for (const ep of decision.episodes || []) {
-    const topic = ep.title || ep.topic_depth
-    if (topic && !topicsCovered.includes(topic)) topicsCovered.push(topic)
+    const topic = ep.title || ep.topic_depth;
+    if (topic && !topicsCovered.includes(topic)) topicsCovered.push(topic);
   }
 
-  const decisionHistory = [...(existing.decision_history || [])]
+  const decisionHistory = [...(existing.decision_history || [])];
   decisionHistory.push({
     date: new Date().toISOString().split('T')[0],
     theme: decision.today_theme,
     confidence: decision.confidence,
     episodes_count: (decision.episodes || []).length
-  })
+  });
 
   await supabase.from('brain_memory').upsert({
     campaign_id: campaignId,
     topics_covered: topicsCovered,
     decision_history: decisionHistory.slice(-30),
     updated_at: new Date().toISOString()
-  })
+  });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { campaignId } = await req.json()
-    if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 })
+    const { campaignId } = await req.json();
+    if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
 
     const { data: campaign, error: campErr } = await supabase
-      .from('campaigns').select('*').eq('id', campaignId).single()
-    if (campErr || !campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+      .from('campaigns').select('*').eq('id', campaignId).single();
+    if (campErr || !campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 
-    const today = new Date().toISOString().split('T')[0]
-    const start = campaign.start_date ? new Date(campaign.start_date) : new Date()
-    const daysIn = Math.max(1, Math.ceil((new Date(today).getTime() - start.getTime()) / 86400000) + 1)
-    const totalDays = campaign.duration_days || 30
-    const phase = daysIn <= 7 ? 'early' : daysIn <= 21 ? 'mid' : 'late'
+    const today = new Date().toISOString().split('T')[0];
+    const start = campaign.start_date ? new Date(campaign.start_date) : new Date();
+    const daysIn = Math.max(1, Math.ceil((new Date(today).getTime() - start.getTime()) / 86400000) + 1);
+    const totalDays = campaign.duration_days || 30;
+    const phase = daysIn <= 7 ? 'early' : daysIn <= 21 ? 'mid' : 'late';
 
     const [worldContext, performance, memory, history] = await Promise.all([
       fetchWorldContext(campaign),
       getPerformanceInsights(campaignId),
       getBrainMemory(campaignId),
       getEpisodeHistory(campaignId)
-    ])
+    ]);
 
-    const todayFormatted = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const todayFormatted = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     const userPrompt = `
 CAMPAIGN:
@@ -363,50 +285,48 @@ CAMPAIGN:
   Day ${daysIn} of ${totalDays} | Phase: ${phase}
   Start: ${campaign.start_date || 'N/A'} | Today: ${today}
 
-LIVE WORLD CONTEXT (fetched right now):
+LIVE WORLD CONTEXT:
 ${JSON.stringify(worldContext, null, 2)}
 
-WHAT HAS WORKED SO FAR (performance data):
+WHAT HAS WORKED SO FAR:
 ${JSON.stringify(performance, null, 2)}
 
-BRAIN MEMORY (what I have learned about this campaign):
+BRAIN MEMORY:
 ${JSON.stringify(memory, null, 2)}
 
-EPISODE HISTORY (DO NOT REPEAT THESE TOPICS):
+EPISODE HISTORY:
 ${JSON.stringify(history.map(ep => ({ title: ep.title, date: ep.scheduled_date, type: ep.episode_type })), null, 2)}
 
 ---
 Today is ${todayFormatted}.
 Reason through all of the above and decide what content to create today.
-Be specific. Use the real data in the context. Return JSON only.`
+Be specific. Use the real data in the context. Return pure JSON only.`;
 
-    const command = new ConverseCommand({
-      modelId: 'amazon.nova-pro-v1:0',
-      system: [{ text: BRAIN_SYSTEM_PROMPT }],
-      messages: [{ role: 'user', content: [{ text: userPrompt }] }],
-      inferenceConfig: { maxTokens: 2048, temperature: 0.3 }
-    })
+    const ai = AIFactory.getPrimary();
+    const response = await ai.generate(userPrompt, {
+      systemPrompt: BRAIN_SYSTEM_PROMPT,
+      maxTokens: 2048,
+      temperature: 0.3,
+    });
 
-    const response = await bedrock.send(command)
-    let text = response.output?.message?.content?.[0]?.text || ''
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim()
+    const cleanText = repairJsonString(response.text);
 
-    let decision: any
+    let decision: any;
     try {
-      decision = JSON.parse(text)
+      decision = JSON.parse(cleanText);
     } catch {
-      return NextResponse.json({ error: 'Brain parse failed', raw: text }, { status: 500 })
+      return NextResponse.json({ error: 'Brain parse failed', raw: cleanText }, { status: 500 });
     }
 
-    const episodesCreated: any[] = []
+    const episodesCreated: any[] = [];
     if (!decision.skip_today) {
       for (const spec of decision.episodes || []) {
-        const ep = await createEpisodeFromSpec(campaignId, spec, worldContext)
-        if (ep) episodesCreated.push(ep)
+        const ep = await createEpisodeFromSpec(campaignId, spec, worldContext);
+        if (ep) episodesCreated.push(ep);
       }
     }
 
-    await saveBrainMemory(campaignId, decision)
+    await saveBrainMemory(campaignId, decision);
 
     await supabase.from('brain_runs').insert({
       campaign_id: campaignId,
@@ -417,7 +337,7 @@ Be specific. Use the real data in the context. Return JSON only.`
       episodes_created: episodesCreated.length,
       world_context: worldContext,
       full_decision: decision
-    })
+    });
 
     return NextResponse.json({
       campaign_id: campaignId,
@@ -427,8 +347,8 @@ Be specific. Use the real data in the context. Return JSON only.`
       world_context: worldContext,
       episodes_created: episodesCreated.length,
       episode_ids: episodesCreated.map(e => e.id)
-    })
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Brain run failed' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Brain run failed' }, { status: 500 });
   }
 }
