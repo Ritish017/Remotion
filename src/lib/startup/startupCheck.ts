@@ -67,8 +67,8 @@ export async function runStartupCheck(): Promise<StartupCheckResult> {
   let remotionReady = false;
   let remotionStatus = 'CHECKING';
   try {
-    require('@remotion/renderer');
-    require('@remotion/bundler');
+    require('remotion');
+    require('@remotion/player');
     remotionReady = true;
     remotionStatus = 'READY';
   } catch (e: any) {

@@ -2,16 +2,26 @@
 
 import React from 'react';
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { SkewedMonolithTowers } from './primitives/SkewedMonolithTowers';
 import type { BrandDNA } from '@/lib/video-spec/types';
 
 export interface DataStoryProps {
   headline?: string;
-  chartType?: 'bars' | 'line' | 'donut' | 'progress' | 'counter';
   title?: string;
-  unit?: string;
-  data?: Array<{ label: string; value: number; color?: string; sublabel?: string }>;
-  counterValue?: number;
+  subhead?: string;
+  sourceTag?: string;
+  statistic?: string;
+  counterTarget?: number;
   counterSuffix?: string;
+  data?: any;
+  unit?: string;
+  metrics?: Array<{
+    label: string;
+    value: string;
+    targetValue?: number;
+    sublabel?: string;
+    color?: string;
+  }>;
   brand?: BrandDNA;
   durationInFrames: number;
   className?: string;
@@ -19,251 +29,130 @@ export interface DataStoryProps {
 }
 
 export const DataStory: React.FC<DataStoryProps> = ({
-  headline = 'EXPONENTIAL COMPUTE ACCELERATION',
-  chartType = 'bars',
-  title = 'PFLOPS / MEGAWATT SCALING (2020–2026)',
-  unit = ' PFLOPS',
-  data = [
-    { label: 'Legacy GPU Cluster (2020)', value: 12, sublabel: '12 PFLOPS / MW baseline' },
-    { label: 'Hopper H100 Array (2023)', value: 68, sublabel: '5.6x compute multiplier' },
-    { label: 'Blackwell NVL72 (2026)', value: 290, sublabel: '24x ultra-scale liquid density' },
+  headline = 'EXPONENTIAL COMPUTE DENSITY',
+  title,
+  subhead = 'Laboratory Benchmarks & Physical Scaling Multipliers',
+  sourceTag = 'CATALYST RESEARCH // CONFIRMED DATA',
+  statistic = '400%',
+  counterTarget = 400,
+  counterSuffix = '%',
+  data,
+  unit,
+  metrics = [
+    { label: 'ENERGY SCALING', value: '400%', targetValue: 400, sublabel: 'Compute per megawatt', color: '#ffc857' },
+    { label: 'TRANSLATION LATENCY', value: '0.12ms', targetValue: 85, sublabel: 'Sub-millisecond interconnect', color: '#64e2c5' },
+    { label: 'CAPITAL DENSITY', value: '$1.4T', targetValue: 95, sublabel: 'Annual sovereign expenditure', color: '#ef6544' },
   ],
   brand,
   durationInFrames,
   className = '',
   style = {},
 }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const accentColor = brand?.colors.accent || '#ffc857';
+  const mintColor = brand?.colors.secondary || '#64e2c5';
+  const rustColor = brand?.colors.primary || '#ef6544';
 
-  const primaryColor = brand?.colors.primary || '#f0522a';
-  const secondaryColor = brand?.colors.secondary || '#00c9a7';
-  const accentColor = brand?.colors.accent || '#ffd166';
-
-  const introSpring = spring({ frame, fps, config: { damping: 14, stiffness: 100 } });
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const numTarget = counterTarget || parseInt(statistic.replace(/[^0-9]/g, ''), 10) || 400;
+  const displayHeadline = headline || title || 'EXPONENTIAL COMPUTE DENSITY';
 
   return (
     <div
-      className={`relative w-full h-full select-none ${className}`}
+      className={`relative w-full h-full select-none overflow-hidden ${className}`}
       style={{
         position: 'absolute',
         inset: 0,
         width: '100%',
         height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '140px 56px 180px 56px',
-        backgroundColor: '#0b0d13',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
+        backgroundColor: '#090b10',
         ...style,
       }}
     >
-      {/* Background Ambient Glow */}
+      {/* Background Architectural Blueprint Grid & Texture */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          pointerEvents: 'none',
-          opacity: 0.3,
-          background: `radial-gradient(ellipse at 50% 40%, ${accentColor}33 0%, transparent 70%)`,
+          opacity: 0.16,
+          backgroundImage: `radial-gradient(circle at 50% 50%, ${mintColor}33 0%, transparent 70%), linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)`,
+          backgroundSize: '100% 100%, 70px 70px, 70px 70px',
         }}
       />
 
-      {/* Header */}
+      {/* Atmospheric Top Light Wash */}
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at 50% 20%, rgba(255, 200, 87, 0.12) 0%, transparent 60%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Frame Border Inset (Phase 6 Signature) */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: '28px',
+          border: '1px solid rgba(246,241,231,0.18)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Top Header & Monospace Eyebrow */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '120px',
+          left: '64px',
+          right: '64px',
           zIndex: 10,
-          opacity: interpolate(introSpring, [0, 1], [0, 1]),
         }}
       >
         <div
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '6px 14px',
-            borderRadius: '8px',
-            backgroundColor: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.35)',
             fontFamily: 'JetBrains Mono, monospace',
-            fontWeight: 700,
-            fontSize: '13px',
-            letterSpacing: '0.1em',
-            color: '#fbbf24',
-            marginBottom: '10px',
-          }}
-        >
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '9999px',
-              backgroundColor: '#fbbf24',
-              display: 'inline-block',
-            }}
-          />
-          EMPIRICAL DATA // BENCHMARK
-        </div>
-        <h2
-          style={{
-            fontSize: '42px',
-            fontWeight: 900,
-            fontFamily: 'Inter, system-ui, sans-serif',
-            letterSpacing: '-0.02em',
-            color: '#ffffff',
-            lineHeight: 1.1,
-            margin: 0,
-          }}
-        >
-          {headline}
-        </h2>
-        <p
-          style={{
             fontSize: '18px',
-            color: '#94a3b8',
-            fontFamily: 'JetBrains Mono, monospace',
-            margin: '6px 0 0 0',
+            fontWeight: 800,
+            letterSpacing: '3.2px',
+            color: accentColor,
+            textTransform: 'uppercase',
+            borderLeft: `5px solid ${accentColor}`,
+            paddingLeft: '13px',
+            marginBottom: '14px',
           }}
         >
-          {title}
-        </p>
+          03 // EMPIRICAL EVIDENCE
+        </div>
+
+        <div
+          style={{
+            color: '#f6f1e7',
+            fontFamily: 'Arial Black, Arial, sans-serif',
+            fontSize: '76px',
+            letterSpacing: '-4px',
+            lineHeight: 0.88,
+            textTransform: 'uppercase',
+            textShadow: '0 5px 22px #000, 0 10px 40px rgba(0,0,0,0.8)',
+            maxWidth: '920px',
+          }}
+        >
+          {displayHeadline}
+        </div>
       </div>
 
-      {/* Chart Body - High Visual Density */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '24px',
-          margin: 'auto 0',
-          width: '100%',
-          maxWidth: '860px',
-          alignSelf: 'center',
-        }}
-      >
-        {data.map((item, idx) => {
-          const itemSpring = spring({ frame: frame - idx * 6, fps, config: { damping: 14, stiffness: 90 } });
-          const barWidthPct = interpolate(itemSpring, [0, 1], [0, (item.value / maxVal) * 100]);
-          const barColor =
-            item.color || (idx === data.length - 1 ? accentColor : idx === data.length - 2 ? secondaryColor : primaryColor);
-
-          const animatedValue = Math.round(interpolate(itemSpring, [0, 1], [0, item.value]));
-
-          return (
-            <div
-              key={idx}
-              style={{
-                padding: '30px',
-                borderRadius: '26px',
-                backgroundColor: 'rgba(22, 25, 34, 0.94)',
-                border: '2px solid rgba(255, 255, 255, 0.16)',
-                backdropFilter: 'blur(16px)',
-                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.75)',
-                opacity: interpolate(itemSpring, [0, 1], [0, 1]),
-                transform: `translateX(${interpolate(itemSpring, [0, 1], [-20, 0])}px)`,
-                boxSizing: 'border-box',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '16px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '24px',
-                    fontWeight: 900,
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                    color: '#ffffff',
-                  }}
-                >
-                  {item.label}
-                </span>
-                <span
-                  style={{
-                    fontSize: '36px',
-                    fontWeight: 900,
-                    fontFamily: 'JetBrains Mono, monospace',
-                    color: barColor,
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {animatedValue.toLocaleString()}{unit}
-                </span>
-              </div>
-
-              {/* Bar track */}
-              <div
-                style={{
-                  width: '100%',
-                  height: '28px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                  border: '1.5px solid rgba(255, 255, 255, 0.14)',
-                  overflow: 'hidden',
-                  padding: '3px',
-                  boxSizing: 'border-box',
-                  marginBottom: '14px',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    borderRadius: '9999px',
-                    width: `${Math.max(4, barWidthPct)}%`,
-                    background: `linear-gradient(to right, ${barColor}99, ${barColor})`,
-                    boxShadow: `0 0 20px ${barColor}99`,
-                  }}
-                />
-              </div>
-
-              {item.sublabel && (
-                <div
-                  style={{
-                    fontSize: '15px',
-                    color: '#94a3b8',
-                    fontFamily: 'JetBrains Mono, monospace',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <span style={{ color: barColor }}>▶</span>
-                  <span>{item.sublabel}</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Footer */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '14px',
-          fontFamily: 'JetBrains Mono, monospace',
-          color: '#94a3b8',
-          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-          paddingTop: '16px',
-        }}
-      >
-        <span>DATA SOURCE: IEEE & LAB BENCHMARKS</span>
-        <span style={{ color: accentColor }}>24X EFFICIENCY MULTIPLIER CONFIRMED</span>
-      </div>
+      {/* Full-Canvas Skewed Monolith Towers & Hero Counter Primitive */}
+      <SkewedMonolithTowers
+        counterTarget={numTarget}
+        counterSuffix={unit || counterSuffix}
+        headline={metrics[0]?.sublabel || displayHeadline}
+        sublabel={subhead}
+        sourceText={sourceTag}
+        towerCount={7}
+        accentColor={accentColor}
+        mintColor={mintColor}
+        rustColor={rustColor}
+        durationInFrames={durationInFrames}
+      />
     </div>
   );
 };

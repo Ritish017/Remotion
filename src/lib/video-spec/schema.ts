@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { VisualBeatSchema } from './visual';
+import { EpisodeDNASchema } from './dna';
 
 export const MotionConfigSchema = z.object({
   entrance: z.enum([
@@ -208,7 +209,22 @@ export const StoryboardTransitionSchema = z.object({
   in: z.string().optional(),
   out: z.string().optional(),
   motivation: z.string().optional(),
-  type: z.enum(['fade', 'slide', 'wipe', 'flip', 'match-cut', 'zoom-through', 'none']).optional().default('fade'),
+  type: z.enum([
+    'fade',
+    'slide',
+    'wipe',
+    'flip',
+    'dissolve',
+    'film-burn',
+    'linear-blur',
+    'cross-zoom',
+    'push-cut',
+    'dreamy-zoom',
+    'clock-wipe',
+    'match-cut',
+    'zoom-through',
+    'none'
+  ]).optional().default('fade'),
   durationFrames: z.number().nonnegative().optional().default(12),
   sharedGeometry: z.string().optional(),
   direction: z.string().optional(),
@@ -259,7 +275,22 @@ export const SceneDataSchema = z.object({
   visualBeats: z.array(VisualBeatSchema).optional(),
   props: z.record(z.string(), z.any()).optional().default({}),
   transitionToNext: z.object({
-    type: z.enum(['fade', 'slide', 'wipe', 'flip', 'match-cut', 'zoom-through', 'none']).default('fade'),
+    type: z.enum([
+      'fade',
+      'slide',
+      'wipe',
+      'flip',
+      'dissolve',
+      'film-burn',
+      'linear-blur',
+      'cross-zoom',
+      'push-cut',
+      'dreamy-zoom',
+      'clock-wipe',
+      'match-cut',
+      'zoom-through',
+      'none'
+    ]).default('fade'),
     durationFrames: z.number().nonnegative().default(12),
   }).optional(),
 });
@@ -297,6 +328,8 @@ export const VideoSpecSchema = z.object({
     durationInFrames: z.number().positive().default(1350), // default 45s @ 30fps
   }),
   brand: BrandDNASchema,
+  episodeDNA: EpisodeDNASchema.optional(),
+  noveltyScore: z.number().min(0).max(100).optional(),
   narration: NarrationDataSchema,
   scenes: z.array(SceneDataSchema).min(1),
   audio: AudioSystemSpecSchema.default({

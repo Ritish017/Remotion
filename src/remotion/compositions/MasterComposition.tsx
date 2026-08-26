@@ -3,7 +3,7 @@
 import React from 'react';
 import { AbsoluteFill, Sequence, Audio, useCurrentFrame, useVideoConfig } from 'remotion';
 import { getTemplateById } from '../registry/TemplateRegistry';
-import { KaraokeCaptions } from '../components/captions/KaraokeCaptions';
+import { DocumentaryCaptions } from '../components/captions/DocumentaryCaptions';
 import { SAMPLE_SHOWCASE_SPEC } from '@/lib/video-spec/sampleSpec';
 import type { VideoSpec } from '@/lib/video-spec/types';
 
@@ -58,7 +58,11 @@ export const MasterComposition: React.FC<MasterCompositionProps> = ({ spec = SAM
 
       {/* 2. Word-Level Captions Overlay */}
       {narration?.words && narration.words.length > 0 && (
-        <KaraokeCaptions words={narration.words} brand={brand} />
+        <DocumentaryCaptions
+          words={narration.words}
+          preset={(brand?.captionStyle?.preset as any) || 'vox-editorial'}
+          brand={brand}
+        />
       )}
 
       {/* 3. Audio Layers */}

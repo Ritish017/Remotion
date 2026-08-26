@@ -17,6 +17,7 @@ import { TimelineScene } from '../scenes/TimelineScene';
 import { ComparisonScene } from '../scenes/ComparisonScene';
 import { UIExplainerScene } from '../scenes/UIExplainerScene';
 import { OutroScene } from '../scenes/OutroScene';
+import { ThreeDScene } from './ThreeDScene';
 import type { VisualBeat } from '@/lib/video-spec/visual';
 import type { BrandDNA, SceneData } from '@/lib/video-spec/types';
 
@@ -268,6 +269,220 @@ export const VISUAL_LANGUAGE_REGISTRY: Record<string, React.FC<VisualLanguageRen
     />
   ),
 
+  'investigative-editorial': ({ beat, scene, brand, durationInFrames }) => (
+    <EditorialCollage
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Investigative Documentary Analysis'}
+      sourceTag={beat.props?.sourceTag || 'DECLASSIFIED ARCHIVE // 2026'}
+      cards={beat.props?.cards}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'archival-collage': ({ beat, scene, brand, durationInFrames }) => (
+    <EditorialCollage
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.visualIntent || 'Historical Evidence & Document Mosaic'}
+      cards={beat.props?.cards}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'newspaper-editorial': ({ beat, scene, brand, durationInFrames }) => (
+    <EditorialCollage
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Front-Page Broadsheet Investigative Edition'}
+      sourceTag="SPECIAL INVESTIGATION // 2026"
+      cards={beat.props?.cards}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'evidence-board': ({ beat, scene, brand, durationInFrames }) => (
+    <EditorialCollage
+      headline={beat.typography?.headline || 'EVIDENCE CORRIDOR & TELEMETRY'}
+      subhead={beat.narrativePurpose || 'Connected nodes, timelines, and verified claims'}
+      sourceTag="EVIDENCE BOARD // FORENSIC CASE"
+      cards={beat.props?.cards}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'technical-blueprint': ({ beat, scene, brand, durationInFrames }) => (
+    <TechnicalDiagram
+      headline={beat.typography?.headline || 'TECHNICAL BLUEPRINT & SYSTEM ARCHITECTURE'}
+      subhead={beat.narrativePurpose || 'Inverted cyan schematic and hardware pinouts'}
+      nodes={beat.props?.nodes}
+      connections={beat.props?.connections}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'exploded-diagram': ({ beat, scene, brand, durationInFrames }) => (
+    <TechnicalDiagram
+      headline={beat.typography?.headline || 'EXPLODED MECHANICAL ASSEMBLY'}
+      subhead={beat.narrativePurpose || '3D Sub-component breakout and dimensional callouts'}
+      nodes={beat.props?.nodes}
+      connections={beat.props?.connections}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'scientific-visualization': ({ beat, scene, brand, durationInFrames }) => (
+    <TechnicalDiagram
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Toroidal Confinement & High-Energy Plasma Field'}
+      nodes={beat.props?.nodes}
+      connections={beat.props?.connections}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'financial-terminal': ({ beat, scene, brand, durationInFrames }) => (
+    <DataStory
+      headline={beat.typography?.headline || scene.title}
+      title={beat.props?.chartTitle || 'HIGH-FREQUENCY ORDER BOOK & TELEMETRY'}
+      data={beat.props?.data || scene.props?.data}
+      unit={beat.props?.unit || ' μs'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'data-journalism': ({ beat, scene, brand, durationInFrames }) => (
+    <DataStory
+      headline={beat.typography?.headline || scene.title}
+      title={beat.props?.chartTitle || 'EMPIRICAL BENCHMARK & METRIC SCALING'}
+      data={beat.props?.data || scene.props?.data}
+      unit={beat.props?.unit || ' PFLOPS'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'geographic-storytelling': ({ beat, scene, brand, durationInFrames }) => (
+    <MapStory
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Global Supply Chain & Intercontinental Routing'}
+      region={beat.props?.regionName || 'GLOBAL ALLIANCE'}
+      markers={beat.props?.markers || scene.props?.markers}
+      routes={beat.props?.routes || scene.props?.routes}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'satellite-reconnaissance': ({ beat, scene, brand, durationInFrames }) => (
+    <MapStory
+      headline={beat.typography?.headline || 'SATELLITE ORBITAL RECONNAISSANCE'}
+      subhead="Planetary Fabrication Hub Coordinates"
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'macro-photography': ({ beat, scene, brand, durationInFrames }) => (
+    <CinematicImage
+      src={beat.assets[0]?.url || beat.props?.imageUrl || scene.props?.imageUrl}
+      headline={beat.typography?.headline || scene.props?.headline || scene.title}
+      subhead={beat.narrativePurpose || scene.props?.subtext}
+      treatment="cinematic_macro"
+      animation="slow-push"
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'industrial-documentary': ({ beat, scene, brand, durationInFrames }) => (
+    <CinematicImage
+      src={beat.assets[0]?.url || beat.props?.imageUrl || scene.props?.imageUrl}
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Industrial High-Precision Manufacturing'}
+      treatment="cinematic_macro"
+      animation="slow-push"
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'architectural-viz': ({ beat, scene, brand, durationInFrames }) => (
+    <TechnicalDiagram
+      headline={beat.typography?.headline || 'ARCHITECTURAL PERSPECTIVE MATRIX'}
+      subhead={beat.narrativePurpose || 'Wireframe elevation and volumetric cross-section'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'depth-2-5d-parallax': ({ beat, scene, brand, durationInFrames }) => (
+    <CutoutScene
+      scene={{
+        ...scene,
+        durationFrames: durationInFrames,
+        props: {
+          ...scene.props,
+          ...(beat.props || {}),
+          headline: beat.typography?.headline || scene.props?.headline || scene.title,
+        },
+      }}
+      brand={brand || ({} as BrandDNA)}
+    />
+  ),
+
+  'cinematic-cutout': ({ beat, scene, brand, durationInFrames }) => (
+    <CutoutScene
+      scene={{
+        ...scene,
+        durationFrames: durationInFrames,
+        props: {
+          ...scene.props,
+          ...(beat.props || {}),
+          headline: beat.typography?.headline || scene.props?.headline || scene.title,
+        },
+      }}
+      brand={brand || ({} as BrandDNA)}
+    />
+  ),
+
+  'isometric-world': ({ beat, scene, brand, durationInFrames }) => (
+    <TechnicalDiagram
+      headline={beat.typography?.headline || 'ISOMETRIC TECHNICAL SYSTEM'}
+      subhead={beat.narrativePurpose || 'Autonomous robotics grid & localized data flow'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'timeline-reconstruction': ({ beat, scene, brand, durationInFrames }) => (
+    <TimelineScene
+      scene={{ ...scene, durationFrames: durationInFrames, props: beat.props || scene.props }}
+      brand={brand || ({} as BrandDNA)}
+    />
+  ),
+
+  'kinetic-typography': ({ beat, scene, brand, durationInFrames }) => (
+    <HookScene
+      scene={{
+        ...scene,
+        durationFrames: durationInFrames,
+        props: {
+          ...scene.props,
+          headline: beat.typography?.headline || scene.props?.headline || scene.title,
+          highlightWords: beat.typography?.emphasisWords || scene.props?.highlightWords,
+          subtext: beat.narrativePurpose || scene.props?.subtext,
+        },
+      }}
+      brand={brand || ({} as BrandDNA)}
+    />
+  ),
+
   'quote-editorial': ({ beat, scene, brand, durationInFrames }) => (
     <EditorialScene
       scene={{ ...scene, durationFrames: durationInFrames, props: beat.props || scene.props }}
@@ -288,8 +503,76 @@ export const VISUAL_LANGUAGE_REGISTRY: Record<string, React.FC<VisualLanguageRen
       brand={brand || ({} as BrandDNA)}
     />
   ),
+
+  '3d-semiconductor': ({ beat, scene, brand, durationInFrames }) => (
+    <ThreeDScene
+      sceneType="semiconductor"
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || '3D Silicon Wafer & Photonic Interconnect Telemetry'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  '3d-neural-network': ({ beat, scene, brand, durationInFrames }) => (
+    <ThreeDScene
+      sceneType="neural-network"
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'High-Density Synaptic Graph & Spatial Reasoning Core'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  '3d-fusion-reactor': ({ beat, scene, brand, durationInFrames }) => (
+    <ThreeDScene
+      sceneType="fusion-reactor"
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Toroidal Tokamak High-Energy Plasma Confinement'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  '3d-robotics-arm': ({ beat, scene, brand, durationInFrames }) => (
+    <ThreeDScene
+      sceneType="robotics-arm"
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Multi-Axis Harmonic Drive & Kinematic Joint Telemetry'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  '3d-engineering': ({ beat, scene, brand, durationInFrames }) => (
+    <ThreeDScene
+      sceneType="semiconductor"
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose || 'Physical Hardware & Component Telemetry'}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
+
+  'three-d-scene': ({ beat, scene, brand, durationInFrames }) => (
+    <ThreeDScene
+      sceneType="general-tech"
+      headline={beat.typography?.headline || scene.title}
+      subhead={beat.narrativePurpose}
+      brand={brand}
+      durationInFrames={durationInFrames}
+    />
+  ),
 };
 
-export function getVisualLanguageRenderer(languageId: string): React.FC<VisualLanguageRendererProps> {
-  return VISUAL_LANGUAGE_REGISTRY[languageId] || VISUAL_LANGUAGE_REGISTRY['editorial-paper'];
+
+export function getVisualLanguageRenderer(languageId: string, strict: boolean = false): React.FC<VisualLanguageRendererProps> {
+  if (VISUAL_LANGUAGE_REGISTRY[languageId]) {
+    return VISUAL_LANGUAGE_REGISTRY[languageId];
+  }
+  if (strict && process.env.NODE_ENV === 'production') {
+    throw new Error(`[VisualLanguageRegistry] Unknown visual language identifier: "${languageId}". Valid options: ${Object.keys(VISUAL_LANGUAGE_REGISTRY).join(', ')}`);
+  }
+  console.warn(`[VisualLanguageRegistry] Warning: Unknown visual language "${languageId}". Falling back to editorial-paper.`);
+  return VISUAL_LANGUAGE_REGISTRY['editorial-paper'];
 }

@@ -2,12 +2,13 @@
 
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
-import type { CameraBeatConfig } from '@/lib/video-spec/visual';
+import type { CameraBeatConfig, SpatialTransform, VisualLayerRole } from '@/lib/video-spec/visual';
 
 export interface ParallaxLayerProps {
   children: React.ReactNode;
-  depth: 'background' | 'midground' | 'subject' | 'foreground' | 'typography' | number;
+  depth: VisualLayerRole | 'background' | 'backgroundMid' | 'midground' | 'subject' | 'foreground' | 'typography' | 'editorialMarks' | number;
   camera?: CameraBeatConfig | { movement: string; intensity?: number };
+  transform?: Partial<SpatialTransform>;
   durationInFrames: number;
   motionSeed?: number;
   className?: string;
@@ -16,16 +17,19 @@ export interface ParallaxLayerProps {
 
 export const DEPTH_FACTORS: Record<string, number> = {
   background: 0.15,
-  midground: 0.5,
+  backgroundMid: 0.35,
+  midground: 0.60,
   subject: 1.0,
   foreground: 1.35,
   typography: 1.5,
+  editorialMarks: 1.65,
 };
 
 export const ParallaxLayer: React.FC<ParallaxLayerProps> = ({
   children,
   depth,
-  camera = { movement: 'push', intensity: 0.2 },
+  camera = { movement: 'push', intensity: 0.22 },
+  transform = {},
   durationInFrames,
   motionSeed = 42,
   className = '',
@@ -33,72 +37,83 @@ export const ParallaxLayer: React.FC<ParallaxLayerProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const progress = Math.min(1, Math.max(0, frame / Math.max(1, durationInFrames)));
-  const intensity = camera.intensity ?? 0.2;
+  const intensity = camera.intensity ?? 0.22;
   const movement = camera.movement || 'push';
 
   const depthMultiplier = typeof depth === 'number' ? depth : (DEPTH_FACTORS[depth] ?? 1.0);
 
-  let translateX = 0;
-  let translateY = 0;
-  let scale = 1.0;
-  let blurPx = 0;
+  const baseScale = transform.scale ?? 1.0;
+  const baseTranslateX = transform.x ?? 0;
+  const baseTranslateY = transform.y ?? 0;
+  const baseRotation = transform.rotation ?? 0;
+  const baseOpacity = transform.opacity ?? 1.0;
+  const baseBlur = transform.blurPx ?? 0;
+
+  let deltaTranslateX = 0;
+  let deltaTranslateY = 0;
+  let dynamicScale = 1.0;
+  let blurPx = baseBlur;
 
   switch (movement) {
     case 'push':
-      scale = interpolate(progress, [0, 1], [1.0, 1.0 + 0.08 * depthMultiplier * intensity * 3]);
+      dynamicScale = interpolate(progress, [0, 1], [1.0, 1.0 + 0.10 * depthMultiplier * intensity * 3]);
       break;
 
     case 'pull':
-      scale = interpolate(progress, [0, 1], [1.0 + 0.08 * depthMultiplier * intensity * 3, 1.0]);
+      dynamicScale = interpolate(progress, [0, 1], [1.0 + 0.10 * depthMultiplier * intensity * 3, 1.0]);
       break;
 
     case 'pan-left':
-      translateX = interpolate(progress, [0, 1], [40 * depthMultiplier * intensity, -40 * depthMultiplier * intensity]);
+      deltaTranslateX = interpolate(progress, [0, 1], [50 * depthMultiplier * intensity, -50 * depthMultiplier * intensity]);
       break;
 
     case 'pan-right':
-      translateX = interpolate(progress, [0, 1], [-40 * depthMultiplier * intensity, 40 * depthMultiplier * intensity]);
+      deltaTranslateX = interpolate(progress, [0, 1], [-50 * depthMultiplier * intensity, 50 * depthMultiplier * intensity]);
       break;
 
     case 'pan-up':
-      translateY = interpolate(progress, [0, 1], [40 * depthMultiplier * intensity, -40 * depthMultiplier * intensity]);
+      deltaTranslateY = interpolate(progress, [0, 1], [50 * depthMultiplier * intensity, -50 * depthMultiplier * intensity]);
       break;
 
     case 'pan-down':
-      translateY = interpolate(progress, [0, 1], [-40 * depthMultiplier * intensity, 40 * depthMultiplier * intensity]);
+      deltaTranslateY = interpolate(progress, [0, 1], [-50 * depthMultiplier * intensity, 50 * depthMultiplier * intensity]);
       break;
 
     case 'orbit': {
       const angle = progress * Math.PI * 0.5;
-      translateX = Math.sin(angle) * 25 * depthMultiplier * intensity;
-      translateY = Math.cos(angle) * 12 * depthMultiplier * intensity;
+      deltaTranslateX = Math.sin(angle) * 30 * depthMultiplier * intensity;
+      deltaTranslateY = Math.cos(angle) * 16 * depthMultiplier * intensity;
       break;
     }
 
     case 'parallax':
-      translateX = interpolate(progress, [0, 1], [-20 * depthMultiplier * intensity, 20 * depthMultiplier * intensity]);
-      translateY = interpolate(progress, [0, 1], [15 * depthMultiplier * intensity, -15 * depthMultiplier * intensity]);
-      scale = interpolate(progress, [0, 1], [1.0, 1.0 + 0.04 * depthMultiplier]);
+      deltaTranslateX = interpolate(progress, [0, 1], [-25 * depthMultiplier * intensity, 25 * depthMultiplier * intensity]);
+      deltaTranslateY = interpolate(progress, [0, 1], [20 * depthMultiplier * intensity, -20 * depthMultiplier * intensity]);
+      dynamicScale = interpolate(progress, [0, 1], [1.0, 1.0 + 0.05 * depthMultiplier]);
       break;
 
     case 'micro-drift': {
       const driftFreq = (frame + motionSeed * 7) * 0.08;
-      translateX = Math.sin(driftFreq) * 6 * depthMultiplier * intensity;
-      translateY = Math.cos(driftFreq * 0.7) * 6 * depthMultiplier * intensity;
+      deltaTranslateX = Math.sin(driftFreq) * 8 * depthMultiplier * intensity;
+      deltaTranslateY = Math.cos(driftFreq * 0.7) * 8 * depthMultiplier * intensity;
       break;
     }
 
     case 'rack-focus':
       if (depth === 'background' || depthMultiplier < 0.4) {
-        blurPx = interpolate(progress, [0, 0.5, 1], [4, 0, 0]);
+        blurPx = interpolate(progress, [0, 0.5, 1], [6, 0, 0]);
       } else if (depth === 'foreground' || depthMultiplier > 1.2) {
-        blurPx = interpolate(progress, [0, 0.5, 1], [0, 0, 4]);
+        blurPx = interpolate(progress, [0, 0.5, 1], [0, 0, 6]);
       }
       break;
 
     default:
       break;
   }
+
+  const finalScale = baseScale * dynamicScale;
+  const finalX = baseTranslateX + deltaTranslateX;
+  const finalY = baseTranslateY + deltaTranslateY;
 
   return (
     <AbsoluteFill
@@ -109,10 +124,11 @@ export const ParallaxLayer: React.FC<ParallaxLayerProps> = ({
         inset: 0,
         width: '100%',
         height: '100%',
-        transform: `scale(${scale}) translate3d(${translateX}px, ${translateY}px, 0)`,
+        transform: `scale(${finalScale}) translate3d(${finalX}px, ${finalY}px, 0) rotate(${baseRotation}deg)`,
+        opacity: baseOpacity,
         filter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
         transformOrigin: 'center center',
-        willChange: 'transform',
+        willChange: 'transform, opacity',
       }}
     >
       <AbsoluteFill className="pointer-events-auto">

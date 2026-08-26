@@ -1,356 +1,310 @@
-'use client'
+'use client';
 
-import { use, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Brain, Zap, Trophy, Calendar, ChevronRight, Plus, Layers } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { useCampaign, useCampaignEpisodes } from '@/hooks/useCampaign'
-import { CAMPAIGN_TYPES, EPISODE_STATUS_CONFIG, SOCIAL_PLATFORMS } from '@/lib/constants'
-import { StatusBadge } from '@/components/shared/StatusBadge'
-import { BrainPanel } from '@/components/brain/BrainPanel'
-import type { Episode } from '@/lib/types'
+import { use, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Layers,
+  Clock,
+  Radio,
+  CheckCircle2,
+  AlertCircle,
+  Play,
+  Flame,
+  ShieldCheck,
+  RefreshCw,
+  Sliders,
+  FileText,
+  Video,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCampaign, useMonthlyCalendar, generateMonthlyCalendar } from '@/hooks/useCampaign';
+import type { CalendarEpisodeDay, EpisodeProductionStatus } from '@/lib/campaign/types';
 
-const TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
-  'ai-teaching': Brain,
-  'social-branding': Zap,
-  'football': Trophy,
-}
+const STATUS_CONFIG: Record<EpisodeProductionStatus, { label: string; color: string; bg: string }> = {
+  PLANNED: { label: 'PLANNED', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)' },
+  RESEARCHING: { label: 'RESEARCHING', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)' },
+  RESEARCH_COMPLETE: { label: 'RESEARCH READY', color: '#0284c7', bg: 'rgba(2, 132, 199, 0.15)' },
+  SCRIPTING: { label: 'SCRIPTING', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' },
+  SCRIPT_COMPLETE: { label: 'SCRIPT READY', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.15)' },
+  STORYBOARDING: { label: 'STORYBOARDING', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.15)' },
+  VISUAL_DIRECTION_COMPLETE: { label: 'VISUAL READY', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)' },
+  VOICE_COMPLETE: { label: 'VOICE SYNCED', color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)' },
+  PREVIEW_READY: { label: 'PREVIEW READY', color: '#ffd166', bg: 'rgba(255, 209, 102, 0.2)' },
+  NEEDS_REVISION: { label: 'REVISION', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  APPROVED: { label: 'APPROVED', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+  RENDERING: { label: 'RENDERING', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)' },
+  QA: { label: 'VISUAL QA', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)' },
+  COMPLETED: { label: 'COMPLETED', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.2)' },
+  FAILED: { label: 'FAILED', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
+};
 
-function EpisodeRow({ episode, accentColor, campaignId }: { episode: Episode; accentColor: string; campaignId: string }) {
-  const router = useRouter()
-  const config = EPISODE_STATUS_CONFIG[episode.status]
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
-  return (
-    <button
-      onClick={() => router.push(`/campaigns/${campaignId}/episodes/${episode.id}`)}
-      className="group w-full text-left"
-    >
-      <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-bg-surface2 transition-colors border border-transparent hover:border-border-DEFAULT">
-        {/* Episode number */}
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold shrink-0"
-          style={{ background: `${accentColor}15`, color: accentColor }}
-        >
-          {episode.episode_number}
-        </div>
+export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const router = useRouter();
 
-        {/* Title / topic */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">
-            {episode.title || episode.topic || `Episode ${episode.episode_number}`}
-          </p>
-          {episode.scheduled_date && (
-            <p className="text-xs text-muted-foreground font-mono mt-0.5">
-              {new Date(episode.scheduled_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </p>
-          )}
-        </div>
+  const [currentYear, setCurrentYear] = useState<number>(() => new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-        {/* Virality score */}
-        {episode.virality_score !== undefined && episode.virality_score !== null && (
-          <div className="text-right hidden sm:block">
-            <p className="font-mono text-sm font-bold" style={{ color: accentColor }}>
-              {episode.virality_score}
-            </p>
-            <p className="text-[10px] text-muted-foreground">virality</p>
-          </div>
-        )}
+  const { campaign, isLoading: campaignLoading } = useCampaign(id);
+  const { calendar, isLoading: calendarLoading, mutate: mutateCalendar } = useMonthlyCalendar(
+    id,
+    currentYear,
+    currentMonth
+  );
 
-        {/* Status */}
-        <StatusBadge status={episode.status} />
+  const handlePrevMonth = () => {
+    if (currentMonth === 1) {
+      setCurrentMonth(12);
+      setCurrentYear(y => y - 1);
+    } else {
+      setCurrentMonth(m => m - 1);
+    }
+  };
 
-        <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-      </div>
-    </button>
-  )
-}
+  const handleNextMonth = () => {
+    if (currentMonth === 12) {
+      setCurrentMonth(1);
+      setCurrentYear(y => y + 1);
+    } else {
+      setCurrentMonth(m => m + 1);
+    }
+  };
 
-// Calendar view: shows episodes on a monthly grid
-function CampaignCalendar({ episodes, accentColor, campaignId }: { episodes: Episode[]; accentColor: string; campaignId: string }) {
-  const router = useRouter()
+  const handleGenerateMonth = async () => {
+    setIsGenerating(true);
+    try {
+      await generateMonthlyCalendar(id, currentYear, currentMonth);
+      await mutateCalendar();
+    } catch (err) {
+      console.error('Failed to generate monthly calendar:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
-  const episodesByDate: Record<string, Episode> = {}
-  episodes.forEach(ep => {
-    if (ep.scheduled_date) episodesByDate[ep.scheduled_date] = ep
-  })
-
-  // Build a 5-week grid from first episode date
-  const firstDate = episodes.find(e => e.scheduled_date)?.scheduled_date
-  if (!firstDate) return null
-
-  const start = new Date(firstDate)
-  // Align to Monday
-  const dayOfWeek = start.getDay()
-  start.setDate(start.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
-
-  const cells: Date[] = []
-  for (let i = 0; i < 35; i++) {
-    const d = new Date(start)
-    d.setDate(start.getDate() + i)
-    cells.push(d)
-  }
-
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-  return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 mb-1">
-        {days.map(d => (
-          <div key={d} className="text-center text-[10px] font-mono text-muted-foreground py-1">{d}</div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((date, i) => {
-          const key = date.toISOString().split('T')[0]
-          const episode = episodesByDate[key]
-          const config = episode ? EPISODE_STATUS_CONFIG[episode.status] : null
-          const isToday = key === new Date().toISOString().split('T')[0]
-
-          return (
-            <div
-              key={i}
-              onClick={() => episode && router.push(`/campaigns/${campaignId}/episodes/${episode.id}`)}
-              className={`aspect-square rounded-md text-center flex flex-col items-center justify-center relative transition-all ${
-                episode ? 'cursor-pointer hover:scale-105' : ''
-              }`}
-              style={episode && config ? { background: config.bgTint, borderWidth: 1, borderColor: config.color + '30' } : { background: 'rgba(255,255,255,0.02)' }}
-            >
-              <span className={`text-[10px] font-mono ${isToday ? 'text-accent-brand font-bold' : 'text-muted-foreground'}`}>
-                {date.getDate()}
-              </span>
-              {episode && config && (
-                <div className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: config.color }} />
-              )}
-              {episode && (
-                <span className="text-[8px] text-muted-foreground mt-0.5 font-mono">
-                  #{episode.episode_number}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-export default function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'overview' | 'brain'>('overview')
-  const { campaign, isLoading: campLoading } = useCampaign(id)
-  const { episodes, isLoading: epsLoading } = useCampaignEpisodes(id)
-
-  if (campLoading) {
+  if (campaignLoading) {
     return (
-      <div className="max-w-6xl mx-auto space-y-6 animate-pulse">
-        <div className="h-8 bg-bg-surface2 rounded w-64" />
-        <div className="h-40 bg-bg-surface rounded-xl" />
+      <div className="max-w-7xl mx-auto py-12 text-center text-slate-400 font-mono">
+        Loading campaign franchise...
       </div>
-    )
+    );
   }
 
   if (!campaign) {
     return (
-      <div className="max-w-6xl mx-auto py-24 text-center">
-        <p className="text-muted-foreground">Campaign not found.</p>
-        <Button variant="outline" onClick={() => router.push('/campaigns')} className="mt-4">
-          ← Back to Campaigns
+      <div className="max-w-7xl mx-auto py-12 space-y-4 text-center">
+        <p className="text-white font-bold">Campaign franchise not found</p>
+        <Button onClick={() => router.push('/campaigns')} variant="outline">
+          Back to Campaigns
         </Button>
       </div>
-    )
+    );
   }
 
-  const Icon = TYPE_ICONS[campaign.type] || Layers
-  const typeConfig = CAMPAIGN_TYPES.find(t => t.id === campaign.type)
-  const completedEps = episodes.filter(e => ['posted', 'analysed'].includes(e.status)).length
-  const progress = episodes.length > 0 ? Math.round((completedEps / episodes.length) * 100) : 0
-
-  // Status distribution for the legend
-  const statusCounts: Record<string, number> = {}
-  episodes.forEach(ep => {
-    statusCounts[ep.status] = (statusCounts[ep.status] || 0) + 1
-  })
+  const daysList: CalendarEpisodeDay[] = calendar?.days || [];
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Breadcrumb + back */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <button onClick={() => router.push('/campaigns')} className="hover:text-foreground transition-colors flex items-center gap-1">
-          <ArrowLeft size={14} />
-          Campaigns
-        </button>
-        <span>/</span>
-        <span className="text-foreground">{campaign.name}</span>
+    <div className="max-w-7xl mx-auto space-y-6 pb-16">
+      {/* Back button */}
+      <button
+        onClick={() => router.push('/campaigns')}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors font-mono"
+      >
+        <ArrowLeft size={14} /> Back to Franchises
+      </button>
+
+      {/* Campaign Franchise Header */}
+      <div className="p-6 rounded-2xl bg-[#10131d] border border-white/10 shadow-2xl relative overflow-hidden space-y-4">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 via-emerald-400 to-rose-500" />
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                MONTHLY STRATEGY ENGINE
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">{campaign.niche}</span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+              {campaign.name}
+            </h1>
+            {campaign.description && (
+              <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+                {campaign.description}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <Button
+              onClick={handleGenerateMonth}
+              disabled={isGenerating}
+              className="bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs h-10 px-5 rounded-xl shadow-lg shadow-amber-400/20 gap-2"
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  Directing 30-Day Strategy...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={14} />
+                  {daysList.length > 0 ? 'Regenerate Strategy' : 'Generate 30-Day Strategy'}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Content Pillars */}
+        {campaign.contentPillars && campaign.contentPillars.length > 0 && (
+          <div className="pt-3 border-t border-white/5 flex items-center gap-2 flex-wrap text-xs">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+              Pillars:
+            </span>
+            {campaign.contentPillars.map((p) => (
+              <span
+                key={p.id || p.title}
+                className="text-[11px] font-mono px-2.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-200"
+              >
+                {p.title} <span className="text-muted-foreground">({Math.round(p.weight * 100)}%)</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Campaign hero */}
-      <Card className="bg-bg-surface border-border-DEFAULT overflow-hidden">
-        <div className="h-1" style={{ background: campaign.accent_color }} />
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center"
-                style={{ background: `${campaign.accent_color}20` }}
+      {/* Calendar Controls & Month Picker */}
+      <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5">
+        <div className="flex items-center gap-3">
+          <CalendarIcon size={18} className="text-amber-400" />
+          <h2 className="text-base font-bold text-white font-mono">
+            {MONTH_NAMES[currentMonth - 1]} {currentYear}
+          </h2>
+          <span className="text-xs text-muted-foreground font-mono">
+            ({daysList.length} / {daysInMonth} Planned Episodes)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrevMonth}
+            className="h-8 px-2.5 bg-white/5 border-white/10 text-white hover:bg-white/10"
+          >
+            <ChevronLeft size={14} />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNextMonth}
+            className="h-8 px-2.5 bg-white/5 border-white/10 text-white hover:bg-white/10"
+          >
+            <ChevronRight size={14} />
+          </Button>
+        </div>
+      </div>
+
+      {/* 30-Day Monthly Calendar Grid */}
+      {calendarLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} className="h-40 rounded-xl bg-white/[0.02] border border-white/5 animate-pulse" />
+          ))}
+        </div>
+      ) : daysList.length === 0 ? (
+        <div className="text-center py-20 px-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+          <CalendarIcon size={40} className="mx-auto text-muted-foreground opacity-40" />
+          <div className="space-y-1">
+            <p className="text-base font-bold text-white">
+              No Strategy Generated for {MONTH_NAMES[currentMonth - 1]} {currentYear}
+            </p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Click the button below to allow Catalyst Campaign Director to synthesize a full 30-day progressive documentary plan with unique Episode DNA and verified novelty scoring.
+            </p>
+          </div>
+          <Button
+            onClick={handleGenerateMonth}
+            disabled={isGenerating}
+            className="bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs h-10 px-5 rounded-xl gap-2"
+          >
+            <Sparkles size={14} />
+            Generate {MONTH_NAMES[currentMonth - 1]} Calendar
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {daysList.map((day) => {
+            const statusConfig = STATUS_CONFIG[day.overallStatus] || STATUS_CONFIG.DRAFT;
+            const novelty = day.visualNoveltyScore || 85;
+
+            return (
+              <button
+                key={day.id}
+                onClick={() => router.push(`/campaigns/${id}/episodes/${day.id}`)}
+                className="group p-3.5 rounded-xl bg-[#11141e] hover:bg-[#161a27] border border-white/5 hover:border-amber-400/50 text-left transition-all flex flex-col justify-between space-y-3 relative overflow-hidden shadow-md hover:shadow-black/60 focus:outline-none"
               >
-                <Icon size={24} style={{ color: campaign.accent_color }} />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">{campaign.name}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-muted-foreground">{typeConfig?.label}</span>
-                  <span className="text-muted-foreground/30">·</span>
+                {/* Date Header & Novelty Badge */}
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-mono font-bold text-amber-400">
+                    Day {day.dayIndex}
+                  </span>
+                  <span
+                    className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: novelty >= 80 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      borderColor: novelty >= 80 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+                      color: novelty >= 80 ? '#10b981' : '#f59e0b',
+                    }}
+                  >
+                    {novelty}% NOVEL
+                  </span>
+                </div>
+
+                {/* Title & Pillar */}
+                <div className="space-y-1 flex-1">
+                  <p className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-amber-300 transition-colors">
+                    {day.title || day.topic}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground font-mono truncate">
+                    {day.contentPillar}
+                  </p>
+                </div>
+
+                {/* Status Footer */}
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between w-full">
                   <Badge
                     variant="outline"
-                    className="font-mono text-[10px] h-5 border-current/20 bg-transparent"
-                    style={{ color: campaign.accent_color }}
+                    className="font-mono text-[9px] py-0 h-4 border-transparent"
+                    style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
                   >
-                    {campaign.status}
+                    {statusConfig.label}
                   </Badge>
-                </div>
-              </div>
-            </div>
 
-            <div className="text-right hidden md:block">
-              <p className="font-mono text-2xl font-bold">{progress}%</p>
-              <p className="text-xs text-muted-foreground">{completedEps}/{episodes.length} posted</p>
-            </div>
-          </div>
-
-          {campaign.description && (
-            <p className="text-sm text-muted-foreground mt-4">{campaign.description}</p>
-          )}
-
-          <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
-            {campaign.start_date && campaign.end_date && (
-              <span className="flex items-center gap-1">
-                <Calendar size={12} />
-                {new Date(campaign.start_date).toLocaleDateString()} → {new Date(campaign.end_date).toLocaleDateString()}
-              </span>
-            )}
-            {campaign.brand_voice && (
-              <span>Voice: {campaign.brand_voice}</span>
-            )}
-            {campaign.target_audience && (
-              <span>Audience: {campaign.target_audience}</span>
-            )}
-          </div>
-
-          {/* Platform chips */}
-          {campaign.target_platforms.length > 0 && (
-            <div className="flex gap-1.5 mt-3">
-              {campaign.target_platforms.map(p => {
-                const platform = SOCIAL_PLATFORMS.find(sp => sp.id === p)
-                return platform ? (
-                  <span
-                    key={p}
-                    className="text-[10px] font-mono px-2 py-0.5 rounded border border-border-DEFAULT"
-                    style={{ color: platform.color }}
-                  >
-                    {platform.label}
+                  <span className="text-[10px] font-mono text-muted-foreground group-hover:text-white transition-colors flex items-center gap-0.5">
+                    Studio <Play size={8} />
                   </span>
-                ) : null
-              })}
-            </div>
-          )}
-
-          {/* Progress bar */}
-          <div className="mt-4">
-            <div className="h-1 bg-bg-surface3 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${progress}%`, background: campaign.accent_color }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tab navigation */}
-      <div className="flex gap-1 p-1 bg-bg-surface rounded-xl border border-border-DEFAULT w-fit">
-        {(['overview', 'brain'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all capitalize flex items-center gap-1.5 ${
-              activeTab === tab
-                ? 'text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            style={activeTab === tab ? { background: campaign.accent_color + '25', color: campaign.accent_color } : {}}
-          >
-            {tab === 'brain' && <Brain size={13} />}
-            {tab === 'overview' && <Calendar size={13} />}
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Brain panel */}
-      {activeTab === 'brain' && (
-        <BrainPanel campaignId={id} accentColor={campaign.accent_color} />
-      )}
-
-      {/* Overview — Calendar + Episode list side by side on large screens */}
-      {activeTab === 'overview' && <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        {/* Calendar */}
-        <Card className="bg-bg-surface border-border-DEFAULT xl:col-span-2">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-              <Calendar size={14} />
-              Content Calendar
-            </h3>
-            {epsLoading ? (
-              <div className="animate-pulse h-40 bg-bg-surface2 rounded" />
-            ) : (
-              <>
-                <CampaignCalendar episodes={episodes} accentColor={campaign.accent_color} campaignId={id} />
-                {/* Legend */}
-                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-                  {Object.entries(statusCounts).map(([status, count]) => {
-                    const config = EPISODE_STATUS_CONFIG[status]
-                    return config ? (
-                      <span key={status} className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: config.color }} />
-                        {config.label} ({count})
-                      </span>
-                    ) : null
-                  })}
                 </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Episode list */}
-        <Card className="bg-bg-surface border-border-DEFAULT xl:col-span-3">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">Episodes ({episodes.length})</h3>
-            </div>
-            {epsLoading ? (
-              <div className="space-y-2 animate-pulse">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="h-12 bg-bg-surface2 rounded-lg" />
-                ))}
-              </div>
-            ) : episodes.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <p className="text-sm">No episodes yet</p>
-              </div>
-            ) : (
-              <div className="space-y-0.5 max-h-[480px] overflow-y-auto pr-1">
-                {episodes.map(ep => (
-                  <EpisodeRow key={ep.id} episode={ep} accentColor={campaign.accent_color} campaignId={id} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
-  )
+  );
 }

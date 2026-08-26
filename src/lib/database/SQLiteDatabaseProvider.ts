@@ -12,6 +12,10 @@ import type {
   ResearchSourceRecord,
   ResearchFactRecord,
   ProviderUsageRecord,
+  CampaignRecord,
+  EpisodeDNARecord,
+  CampaignMemoryRecord,
+  VisualStyleMemoryRecord,
 } from './DatabaseProvider';
 import { getBaseStoragePath } from '../storage/storagePaths';
 
@@ -105,8 +109,70 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
         topic TEXT NOT NULL,
         status TEXT NOT NULL,
         scheduled_date TEXT,
+        research_json TEXT,
+        script_json TEXT,
+        storyboard_json TEXT,
+        video_spec_id TEXT,
+        qa_report_json TEXT,
+        render_job_id TEXT,
+        approved_at TEXT,
+        rendered_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        niche TEXT,
+        target_audience TEXT,
+        platforms_json TEXT NOT NULL,
+        publishing_frequency TEXT,
+        content_pillars_json TEXT NOT NULL,
+        tone TEXT,
+        editorial_identity_json TEXT,
+        visual_identity_json TEXT,
+        preferred_duration_seconds REAL DEFAULT 45,
+        aspect_ratios_json TEXT,
+        narration_style_json TEXT,
+        cta_strategy_json TEXT,
+        monthly_strategy_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS episode_dna (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL,
+        campaign_id TEXT,
+        dna_json TEXT NOT NULL,
+        visual_novelty_score REAL,
+        novelty_breakdown_json TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS campaign_memory (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL,
+        memory_type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS visual_style_memory (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT,
+        episode_id TEXT NOT NULL,
+        visual_language TEXT NOT NULL,
+        composition_language TEXT,
+        motion_language TEXT,
+        camera_language TEXT,
+        palette_id TEXT,
+        metaphors_json TEXT,
+        dna_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS video_specs (
@@ -152,6 +218,26 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
         timestamp TEXT NOT NULL
       );
     `);
+
+    // Safe column migrations for existing databases
+    const migrations = [
+      'ALTER TABLE episodes ADD COLUMN research_json TEXT',
+      'ALTER TABLE episodes ADD COLUMN script_json TEXT',
+      'ALTER TABLE episodes ADD COLUMN storyboard_json TEXT',
+      'ALTER TABLE episodes ADD COLUMN video_spec_id TEXT',
+      'ALTER TABLE episodes ADD COLUMN qa_report_json TEXT',
+      'ALTER TABLE episodes ADD COLUMN render_job_id TEXT',
+      'ALTER TABLE episodes ADD COLUMN approved_at TEXT',
+      'ALTER TABLE episodes ADD COLUMN rendered_at TEXT',
+    ];
+
+    for (const sql of migrations) {
+      try {
+        this.db.exec(sql);
+      } catch {
+        // Column already exists
+      }
+    }
   }
 
   // --- Render Jobs ---
@@ -162,7 +248,7 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
     const progress = job.progress ?? 0;
 
     const stmt = db.prepare(`
-      INSERT INTO render_jobs (
+      INSERT OR REPLACE INTO render_jobs (
         id, project_id, episode_id, composition_id, status, progress,
         output_path, duration, error_code, error_message, spec_json,
         started_at, completed_at, created_at
@@ -414,11 +500,34 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO episodes (id, project_id, episode_number, title, topic, status, scheduled_date, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO episodes (
+        id, project_id, episode_number, title, topic, status, scheduled_date,
+        research_json, script_json, storyboard_json, video_spec_id,
+        qa_report_json, render_job_id, approved_at, rendered_at,
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(episode.id, episode.projectId, episode.episodeNumber, episode.title, episode.topic, episode.status, episode.scheduledDate ?? null, now, now);
+    stmt.run(
+      episode.id,
+      episode.projectId,
+      episode.episodeNumber,
+      episode.title,
+      episode.topic,
+      episode.status,
+      episode.scheduledDate ?? null,
+      episode.researchJson ?? null,
+      episode.scriptJson ?? null,
+      episode.storyboardJson ?? null,
+      episode.videoSpecId ?? null,
+      episode.qaReportJson ?? null,
+      episode.renderJobId ?? null,
+      episode.approvedAt ?? null,
+      episode.renderedAt ?? null,
+      now,
+      now
+    );
 
     return { ...episode, createdAt: now, updatedAt: now };
   }
@@ -436,16 +545,65 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
       topic: row.topic,
       status: row.status,
       scheduledDate: row.scheduled_date,
+      researchJson: row.research_json,
+      scriptJson: row.script_json,
+      storyboardJson: row.storyboard_json,
+      videoSpecId: row.video_spec_id,
+      qaReportJson: row.qa_report_json,
+      renderJobId: row.render_job_id,
+      approvedAt: row.approved_at,
+      renderedAt: row.rendered_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
   }
 
-  async listEpisodes(projectId?: string): Promise<EpisodeRecord[]> {
+  async updateEpisode(id: string, updates: Partial<EpisodeRecord>): Promise<EpisodeRecord | null> {
+    const db = this.getDB();
+    const existing = await this.getEpisode(id);
+    if (!existing) return null;
+
+    const updated: EpisodeRecord = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const stmt = db.prepare(`
+      UPDATE episodes
+      SET project_id = ?, episode_number = ?, title = ?, topic = ?, status = ?, scheduled_date = ?,
+          research_json = ?, script_json = ?, storyboard_json = ?, video_spec_id = ?,
+          qa_report_json = ?, render_job_id = ?, approved_at = ?, rendered_at = ?, updated_at = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      updated.projectId,
+      updated.episodeNumber,
+      updated.title,
+      updated.topic,
+      updated.status,
+      updated.scheduledDate ?? null,
+      updated.researchJson ?? null,
+      updated.scriptJson ?? null,
+      updated.storyboardJson ?? null,
+      updated.videoSpecId ?? null,
+      updated.qaReportJson ?? null,
+      updated.renderJobId ?? null,
+      updated.approvedAt ?? null,
+      updated.renderedAt ?? null,
+      updated.updatedAt,
+      id
+    );
+
+    return updated;
+  }
+
+  async listEpisodes(projectIdOrCampaignId?: string): Promise<EpisodeRecord[]> {
     const db = this.getDB();
     let rows: any[];
-    if (projectId) {
-      rows = db.prepare(`SELECT * FROM episodes WHERE project_id = ? ORDER BY episode_number ASC`).all(projectId) as any[];
+    if (projectIdOrCampaignId) {
+      rows = db.prepare(`SELECT * FROM episodes WHERE project_id = ? ORDER BY episode_number ASC`).all(projectIdOrCampaignId) as any[];
     } else {
       rows = db.prepare(`SELECT * FROM episodes ORDER BY created_at DESC`).all() as any[];
     }
@@ -457,8 +615,320 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
       topic: r.topic,
       status: r.status,
       scheduledDate: r.scheduled_date,
+      researchJson: r.research_json,
+      scriptJson: r.script_json,
+      storyboardJson: r.storyboard_json,
+      videoSpecId: r.video_spec_id,
+      qaReportJson: r.qa_report_json,
+      renderJobId: r.render_job_id,
+      approvedAt: r.approved_at,
+      renderedAt: r.rendered_at,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
+    }));
+  }
+
+  async getUnifiedEpisodeState(episodeId: string): Promise<UnifiedEpisodeState | null> {
+    const episode = await this.getEpisode(episodeId);
+    if (!episode) return null;
+
+    let videoSpec: any = null;
+    let specRecord = await this.getVideoSpecByEpisode(episodeId);
+    if (!specRecord && episode.videoSpecId) {
+      specRecord = await this.getVideoSpec(episode.videoSpecId);
+    }
+    if (specRecord?.specJson) {
+      try {
+        videoSpec = JSON.parse(specRecord.specJson);
+      } catch {}
+    }
+
+    let dna: any = null;
+    const dnaRecord = await this.getEpisodeDNA(episodeId);
+    if (dnaRecord?.dnaJson) {
+      try {
+        dna = JSON.parse(dnaRecord.dnaJson);
+      } catch {}
+    }
+
+    let renderJob: any = null;
+    if (episode.renderJobId) {
+      renderJob = await this.getRenderJob(episode.renderJobId);
+    }
+
+    const sources = await this.listResearchSources(episode.projectId);
+    const facts = await this.listResearchFacts(episode.projectId);
+
+    return {
+      episode,
+      videoSpec,
+      dna,
+      renderJob,
+      sources,
+      facts,
+    };
+  }
+
+  // --- Campaigns ---
+
+  async createCampaign(campaign: Omit<CampaignRecord, 'createdAt' | 'updatedAt'>): Promise<CampaignRecord> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO campaigns (
+        id, name, description, niche, target_audience, platforms_json,
+        publishing_frequency, content_pillars_json, tone, editorial_identity_json,
+        visual_identity_json, preferred_duration_seconds, aspect_ratios_json,
+        narration_style_json, cta_strategy_json, monthly_strategy_json, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      campaign.id,
+      campaign.name,
+      campaign.description ?? null,
+      campaign.niche ?? null,
+      campaign.targetAudience ?? null,
+      campaign.platformsJson,
+      campaign.publishingFrequency ?? 'daily',
+      campaign.contentPillarsJson,
+      campaign.tone ?? null,
+      campaign.editorialIdentityJson ?? null,
+      campaign.visualIdentityJson ?? null,
+      campaign.preferredDurationSeconds ?? 45,
+      campaign.aspectRatiosJson ?? JSON.stringify(['9:16']),
+      campaign.narrationStyleJson ?? null,
+      campaign.ctaStrategyJson ?? null,
+      campaign.monthlyStrategyJson ?? null,
+      now,
+      now
+    );
+
+    return { ...campaign, createdAt: now, updatedAt: now };
+  }
+
+  async getCampaign(id: string): Promise<CampaignRecord | null> {
+    const db = this.getDB();
+    const stmt = db.prepare(`SELECT * FROM campaigns WHERE id = ?`);
+    const row = stmt.get(id) as any;
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      niche: row.niche,
+      targetAudience: row.target_audience,
+      platformsJson: row.platforms_json,
+      publishingFrequency: row.publishing_frequency,
+      contentPillarsJson: row.content_pillars_json,
+      tone: row.tone,
+      editorialIdentityJson: row.editorial_identity_json,
+      visualIdentityJson: row.visual_identity_json,
+      preferredDurationSeconds: row.preferred_duration_seconds,
+      aspectRatiosJson: row.aspect_ratios_json,
+      narrationStyleJson: row.narration_style_json,
+      ctaStrategyJson: row.cta_strategy_json,
+      monthlyStrategyJson: row.monthly_strategy_json,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async listCampaigns(): Promise<CampaignRecord[]> {
+    const db = this.getDB();
+    const rows = db.prepare(`SELECT * FROM campaigns ORDER BY created_at DESC`).all() as any[];
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      niche: row.niche,
+      targetAudience: row.target_audience,
+      platformsJson: row.platforms_json,
+      publishingFrequency: row.publishing_frequency,
+      contentPillarsJson: row.content_pillars_json,
+      tone: row.tone,
+      editorialIdentityJson: row.editorial_identity_json,
+      visualIdentityJson: row.visual_identity_json,
+      preferredDurationSeconds: row.preferred_duration_seconds,
+      aspectRatiosJson: row.aspect_ratios_json,
+      narrationStyleJson: row.narration_style_json,
+      ctaStrategyJson: row.cta_strategy_json,
+      monthlyStrategyJson: row.monthly_strategy_json,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async updateCampaign(id: string, updates: Partial<CampaignRecord>): Promise<CampaignRecord | null> {
+    const db = this.getDB();
+    const existing = await this.getCampaign(id);
+    if (!existing) return null;
+
+    const updated: CampaignRecord = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const stmt = db.prepare(`
+      UPDATE campaigns
+      SET name = ?, description = ?, niche = ?, target_audience = ?, platforms_json = ?,
+          publishing_frequency = ?, content_pillars_json = ?, tone = ?, editorial_identity_json = ?,
+          visual_identity_json = ?, preferred_duration_seconds = ?, aspect_ratios_json = ?,
+          narration_style_json = ?, cta_strategy_json = ?, monthly_strategy_json = ?, updated_at = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      updated.name,
+      updated.description ?? null,
+      updated.niche ?? null,
+      updated.targetAudience ?? null,
+      updated.platformsJson,
+      updated.publishingFrequency ?? 'daily',
+      updated.contentPillarsJson,
+      updated.tone ?? null,
+      updated.editorialIdentityJson ?? null,
+      updated.visualIdentityJson ?? null,
+      updated.preferredDurationSeconds ?? 45,
+      updated.aspectRatiosJson ?? JSON.stringify(['9:16']),
+      updated.narrationStyleJson ?? null,
+      updated.ctaStrategyJson ?? null,
+      updated.monthlyStrategyJson ?? null,
+      updated.updatedAt,
+      id
+    );
+
+    return updated;
+  }
+
+  // --- Episode DNA ---
+
+  async saveEpisodeDNA(record: Omit<EpisodeDNARecord, 'createdAt'>): Promise<EpisodeDNARecord> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO episode_dna (id, episode_id, campaign_id, dna_json, visual_novelty_score, novelty_breakdown_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      record.id,
+      record.episodeId,
+      record.campaignId ?? null,
+      record.dnaJson,
+      record.visualNoveltyScore ?? null,
+      record.noveltyBreakdownJson ?? null,
+      now
+    );
+
+    return { ...record, createdAt: now };
+  }
+
+  async getEpisodeDNA(episodeId: string): Promise<EpisodeDNARecord | null> {
+    const db = this.getDB();
+    const stmt = db.prepare(`SELECT * FROM episode_dna WHERE episode_id = ?`);
+    const row = stmt.get(episodeId) as any;
+    if (!row) return null;
+    return {
+      id: row.id,
+      episodeId: row.episode_id,
+      campaignId: row.campaign_id,
+      dnaJson: row.dna_json,
+      visualNoveltyScore: row.visual_novelty_score,
+      noveltyBreakdownJson: row.novelty_breakdown_json,
+      createdAt: row.created_at,
+    };
+  }
+
+  // --- Campaign Memory ---
+
+  async saveCampaignMemory(memory: Omit<CampaignMemoryRecord, 'createdAt'>): Promise<CampaignMemoryRecord> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT INTO campaign_memory (id, campaign_id, memory_type, content, metadata_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(memory.id, memory.campaignId, memory.memoryType, memory.content, memory.metadataJson ?? null, now);
+
+    return { ...memory, createdAt: now };
+  }
+
+  async listCampaignMemory(campaignId: string, memoryType?: string): Promise<CampaignMemoryRecord[]> {
+    const db = this.getDB();
+    let rows: any[];
+    if (memoryType) {
+      rows = db.prepare(`SELECT * FROM campaign_memory WHERE campaign_id = ? AND memory_type = ? ORDER BY created_at DESC`).all(campaignId, memoryType) as any[];
+    } else {
+      rows = db.prepare(`SELECT * FROM campaign_memory WHERE campaign_id = ? ORDER BY created_at DESC`).all(campaignId) as any[];
+    }
+    return rows.map((r) => ({
+      id: r.id,
+      campaignId: r.campaign_id,
+      memoryType: r.memory_type,
+      content: r.content,
+      metadataJson: r.metadata_json,
+      createdAt: r.created_at,
+    }));
+  }
+
+  // --- Visual Style Memory ---
+
+  async saveVisualStyleMemory(record: Omit<VisualStyleMemoryRecord, 'createdAt'>): Promise<VisualStyleMemoryRecord> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT INTO visual_style_memory (
+        id, campaign_id, episode_id, visual_language, composition_language,
+        motion_language, camera_language, palette_id, metaphors_json, dna_json, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      record.id,
+      record.campaignId ?? null,
+      record.episodeId,
+      record.visualLanguage,
+      record.compositionLanguage ?? null,
+      record.motionLanguage ?? null,
+      record.cameraLanguage ?? null,
+      record.paletteId ?? null,
+      record.metaphorsJson ?? null,
+      record.dnaJson,
+      now
+    );
+
+    return { ...record, createdAt: now };
+  }
+
+  async listVisualStyleMemory(campaignId?: string, limit: number = 30): Promise<VisualStyleMemoryRecord[]> {
+    const db = this.getDB();
+    let rows: any[];
+    if (campaignId) {
+      rows = db.prepare(`SELECT * FROM visual_style_memory WHERE campaign_id = ? ORDER BY created_at DESC LIMIT ?`).all(campaignId, limit) as any[];
+    } else {
+      rows = db.prepare(`SELECT * FROM visual_style_memory ORDER BY created_at DESC LIMIT ?`).all(limit) as any[];
+    }
+    return rows.map((r) => ({
+      id: r.id,
+      campaignId: r.campaign_id,
+      episodeId: r.episode_id,
+      visualLanguage: r.visual_language,
+      compositionLanguage: r.composition_language,
+      motionLanguage: r.motion_language,
+      cameraLanguage: r.camera_language,
+      paletteId: r.palette_id,
+      metaphorsJson: r.metaphors_json,
+      dnaJson: r.dna_json,
+      createdAt: r.created_at,
     }));
   }
 
@@ -482,6 +952,22 @@ export class SQLiteDatabaseProvider implements DatabaseProvider {
     const db = this.getDB();
     const stmt = db.prepare(`SELECT * FROM video_specs WHERE id = ?`);
     const row = stmt.get(id) as any;
+    if (!row) return null;
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      episodeId: row.episode_id,
+      specJson: row.spec_json,
+      versionTag: row.version_tag,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async getVideoSpecByEpisode(episodeId: string): Promise<VideoSpecRecord | null> {
+    const db = this.getDB();
+    const stmt = db.prepare(`SELECT * FROM video_specs WHERE episode_id = ? ORDER BY created_at DESC LIMIT 1`);
+    const row = stmt.get(episodeId) as any;
     if (!row) return null;
     return {
       id: row.id,

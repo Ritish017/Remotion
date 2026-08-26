@@ -36,14 +36,34 @@ export const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
 }
 
 export const EPISODE_STATUS_CONFIG: Record<string, { label: string; color: string; bgTint: string }> = {
-  idea:            { label: 'Idea',        color: '#71717a', bgTint: 'rgba(113,113,122,0.08)' },
-  researched:      { label: 'Researched',  color: '#3b82f6', bgTint: 'rgba(59,130,246,0.08)'  },
-  scripted:        { label: 'Scripted',    color: '#8b5cf6', bgTint: 'rgba(139,92,246,0.08)'  },
-  video_generated: { label: 'Video Ready', color: '#00c9a7', bgTint: 'rgba(0,201,167,0.08)'   },
-  scheduled:       { label: 'Scheduled',   color: '#f5c518', bgTint: 'rgba(245,197,24,0.08)'  },
-  posted:          { label: 'Posted',      color: '#22c55e', bgTint: 'rgba(34,197,94,0.08)'   },
-  analysed:        { label: 'Analysed',    color: '#10b981', bgTint: 'rgba(16,185,129,0.12)'  },
-}
+  // 15-State Production Lifecycle
+  PLANNED:                   { label: 'Planned',             color: '#94a3b8', bgTint: 'rgba(148,163,184,0.12)' },
+  RESEARCHING:               { label: 'Researching',         color: '#38bdf8', bgTint: 'rgba(56,189,248,0.12)'  },
+  RESEARCH_COMPLETE:         { label: 'Research Complete',   color: '#0284c7', bgTint: 'rgba(2,132,199,0.12)'   },
+  SCRIPTING:                 { label: 'Scripting',           color: '#a855f7', bgTint: 'rgba(168,85,247,0.12)'  },
+  SCRIPT_COMPLETE:           { label: 'Script Complete',     color: '#9333ea', bgTint: 'rgba(147,51,234,0.12)'  },
+  STORYBOARDING:             { label: 'Storyboarding',       color: '#ec4899', bgTint: 'rgba(236,72,153,0.12)'  },
+  VISUAL_DIRECTION_COMPLETE: { label: 'Visual Directing',    color: '#f43f5e', bgTint: 'rgba(244,63,94,0.12)'   },
+  VOICE_COMPLETE:            { label: 'Voice Synced',        color: '#f97316', bgTint: 'rgba(249,115,22,0.12)'  },
+  PREVIEW_READY:             { label: 'Preview Ready',       color: '#eab308', bgTint: 'rgba(234,179,8,0.12)'   },
+  NEEDS_REVISION:            { label: 'Needs Revision',      color: '#ef4444', bgTint: 'rgba(239,68,68,0.12)'   },
+  APPROVED:                  { label: 'Human Approved',      color: '#10b981', bgTint: 'rgba(16,185,129,0.12)'  },
+  RENDERING:                 { label: 'Rendering MP4',       color: '#06b6d4', bgTint: 'rgba(6,182,212,0.12)'   },
+  QA:                        { label: 'Visual QA',           color: '#8b5cf6', bgTint: 'rgba(139,92,246,0.12)'  },
+  COMPLETED:                 { label: 'Completed',           color: '#22c55e', bgTint: 'rgba(34,197,94,0.16)'   },
+  FAILED:                    { label: 'Failed',              color: '#f87171', bgTint: 'rgba(248,113,113,0.16)' },
+
+  // Backwards-compatible aliases
+  idea:                      { label: 'Planned',             color: '#94a3b8', bgTint: 'rgba(148,163,184,0.12)' },
+  researched:                { label: 'Researched',          color: '#38bdf8', bgTint: 'rgba(56,189,248,0.12)'  },
+  scripted:                  { label: 'Scripted',            color: '#a855f7', bgTint: 'rgba(168,85,247,0.12)'  },
+  video_generated:           { label: 'Preview Ready',       color: '#eab308', bgTint: 'rgba(234,179,8,0.12)'   },
+  scheduled:                 { label: 'Scheduled',           color: '#f5c518', bgTint: 'rgba(245,197,24,0.08)'  },
+  posted:                    { label: 'Posted',              color: '#22c55e', bgTint: 'rgba(34,197,94,0.08)'   },
+  analysed:                  { label: 'Analysed',            color: '#10b981', bgTint: 'rgba(16,185,129,0.12)'  },
+  DRAFT:                     { label: 'Draft',               color: '#71717a', bgTint: 'rgba(113,113,122,0.08)' },
+  PREVIEW:                   { label: 'Preview Ready',       color: '#eab308', bgTint: 'rgba(234,179,8,0.12)'   },
+};
 
 export const SOCIAL_PLATFORMS = [
   { id: 'instagram' as const, label: 'Instagram',   color: '#e1306c', icon: 'Instagram' },

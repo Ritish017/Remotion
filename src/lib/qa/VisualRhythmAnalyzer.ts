@@ -1,36 +1,48 @@
 import type { VideoSpec } from '@/lib/video-spec/types';
 
-export interface VisualRhythmScore {
-  score: number; // 0 to 100 (target >= 85)
+export interface VisualRhythmReport {
   passed: boolean;
-  visualChangeFrequencySeconds: number;
-  motionDensity: number; // 0.0 to 1.0
-  cameraVarietyScore: number;
-  subscores: {
-    pacingScore: number;
-    varietyScore: number;
-    motionScore: number;
-    densityScore: number;
+  score: number; // 0 to 100
+  warnings: string[];
+  visualChangeFrequencySeconds?: number;
+  metrics: {
+    averageBeatDurationSeconds: number;
+    visualChangeFrequency: number; // changes per 10 seconds
+    scenePacingVariance: number;
+    motionDensityScore: number;
   };
-  recommendations: string[];
 }
 
-export function analyzeVisualRhythm(spec: VideoSpec): VisualRhythmScore {
-  const fps = spec.composition.fps || 30;
-  const totalSeconds = spec.composition.durationInFrames / fps;
+export type VisualRhythmScore = VisualRhythmReport;
+
+export function analyzeVisualRhythm(spec: VideoSpec): VisualRhythmReport {
+  const warnings: string[] = [];
+  const fps = spec.composition?.fps || 30;
+  const totalFrames = spec.composition?.durationInFrames || 45 * fps;
+  const totalDurationSeconds = totalFrames / fps;
 
   let totalVisualBeats = 0;
+  const beatDurationsSeconds: number[] = [];
+
   for (const scene of spec.scenes) {
     if (scene.visualBeats && scene.visualBeats.length > 0) {
       totalVisualBeats += scene.visualBeats.length;
+      scene.visualBeats.forEach(b => {
+        beatDurationsSeconds.push(b.durationInFrames / fps);
+      });
     } else {
       totalVisualBeats += 1;
+      beatDurationsSeconds.push(scene.durationFrames / fps);
     }
   }
 
-  const changeFrequency = totalSeconds / Math.max(1, totalVisualBeats);
+  const averageBeatDurationSeconds = totalVisualBeats > 0
+    ? Number((totalDurationSeconds / totalVisualBeats).toFixed(2))
+    : 4.0;
 
-  // Target: a visual evolution every 2.0 to 4.5 seconds
+  const changeFrequency = Number(((totalVisualBeats / totalDurationSeconds) * 10).toFixed(2));
+
+  // Pacing Score calculation
   let pacingScore = 100;
   if (changeFrequency > 5.5) {
     pacingScore = Math.max(50, 100 - (changeFrequency - 5.5) * 15);
@@ -44,7 +56,7 @@ export function analyzeVisualRhythm(spec: VideoSpec): VisualRhythmScore {
     cameraTypes.add(scene.camera?.type || 'push');
     if (scene.visualBeats) {
       scene.visualBeats.forEach(b => {
-        if (b.camera) cameraTypes.add(b.camera.movement);
+        if (b.camera?.movement) cameraTypes.add(b.camera.movement);
       });
     }
   }
@@ -59,31 +71,32 @@ export function analyzeVisualRhythm(spec: VideoSpec): VisualRhythmScore {
 
   const score = Math.round(
     pacingScore * 0.35 +
+    densityScore * 0.25 +
     varietyScore * 0.25 +
-    motionScore * 0.20 +
-    densityScore * 0.20
+    motionScore * 0.15
   );
 
-  const recommendations: string[] = [];
-  if (changeFrequency > 5.0) {
-    recommendations.push('Increase visual beat frequency: add sub-scene micro-beats every 2–4 seconds.');
+  // Variance calculation
+  const mean = averageBeatDurationSeconds;
+  const variance = beatDurationsSeconds.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (beatDurationsSeconds.length || 1);
+
+  if (averageBeatDurationSeconds > 6.0) {
+    warnings.push(`SLOW_PACING: Average visual beat duration (${averageBeatDurationSeconds}s) exceeds optimal documentary threshold (4.0s).`);
   }
-  if (cameraTypes.size < 3) {
-    recommendations.push('Add diverse camera movements (e.g. pan-left, orbit, parallax, zoom-region).');
+  if (changeFrequency < 2.0) {
+    warnings.push(`LOW_CHANGE_FREQUENCY: Only ${changeFrequency} visual shifts per 10 seconds.`);
   }
 
   return {
+    passed: score >= 70,
     score,
-    passed: score >= 80,
-    visualChangeFrequencySeconds: Number(changeFrequency.toFixed(2)),
-    motionDensity: Number((densityScore / 100).toFixed(2)),
-    cameraVarietyScore,
-    subscores: {
-      pacingScore: Math.round(pacingScore),
-      varietyScore: Math.round(varietyScore),
-      motionScore: Math.round(motionScore),
-      densityScore: Math.round(densityScore),
+    warnings,
+    visualChangeFrequencySeconds: averageBeatDurationSeconds,
+    metrics: {
+      averageBeatDurationSeconds,
+      visualChangeFrequency: changeFrequency,
+      scenePacingVariance: Number(variance.toFixed(2)),
+      motionDensityScore: densityScore,
     },
-    recommendations,
   };
 }

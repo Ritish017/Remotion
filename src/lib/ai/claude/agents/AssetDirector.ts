@@ -20,19 +20,22 @@ export async function runAssetDirector(visualPlan: VisualPlan): Promise<AssetDir
       if (beat.assets && beat.assets.length > 0) {
         allRequests.push(...beat.assets);
       } else {
-        // Synthesize intelligent multi-layer asset requests based on narrative and visual language
+        // Derive semantic search query from topic title, scene intent, and visual metaphor
+        const semanticSubject = beat.visualMetaphor || beat.visualIntent || scene.visualIntent || scene.narrativePurpose || visualPlan.title;
+        
         allRequests.push({
-          id: `asset_${scene.sceneId}_primary`,
+          id: `asset_${scene.sceneId}_${beat.id}`,
           type: beat.primaryVisual.includes('photo') ? 'photo' : beat.primaryVisual.includes('map') ? 'map' : beat.primaryVisual.includes('cutout') ? 'photo' : 'diagram',
-          subject: beat.visualIntent || scene.visualIntent || 'Documentary Subject',
+          subject: semanticSubject,
           treatment: beat.primaryVisual.includes('archival') ? 'archival_grain' : 'cinematic_macro',
           aspectRatio: '16:9',
+          canvasCoveragePct: 80,
         });
       }
     }
   }
 
-  // Deduplicate and resolve assets
+  // Deduplicate and resolve assets with topic-specific intelligence
   const resolvedAssets: Array<{ id: string; type: string; url: string; description?: string }> = [];
   const seen = new Set<string>();
 

@@ -1,7 +1,4 @@
-/**
- * Configuration loader for Anthropic Claude Provider.
- * Validates required configuration without hardcoding model IDs or leaking secrets.
- */
+import { modelRegistry } from '@/lib/config/models';
 
 export interface ClaudeConfig {
   apiKey: string;
@@ -13,8 +10,8 @@ export interface ClaudeConfig {
 
 export function getClaudeConfig(): ClaudeConfig {
   const apiKey = process.env.ANTHROPIC_API_KEY || '';
-  const primaryModel = process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL_PRIMARY || 'claude-3-5-sonnet-latest';
-  const fastModel = process.env.ANTHROPIC_MODEL_FAST || 'claude-3-5-haiku-latest';
+  const primaryModel = modelRegistry.getPrimaryModel();
+  const fastModel = modelRegistry.getAuxiliaryModel();
 
   return {
     apiKey,

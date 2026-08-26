@@ -19,32 +19,27 @@ export async function runVisualDirector(input: VisualDirectorInput): Promise<Vis
   const fps = 30;
   const totalFrames = durationSeconds * fps;
 
-  const systemPrompt = `You are the Lead Visual Director for Catalyst Content OS, producing world-class cinematic editorial motion graphics videos in the style of Vox, Bloomberg Originals, and premium documentary explainers.
+  const systemPrompt = `You are the Lead Visual Director for Catalyst Content OS, producing world-class cinematic editorial motion graphics in the broadcast style of Vox, Bloomberg Originals, and premium investigative documentaries.
 
 YOUR MISSION:
-Transform the storyboard into a cinematic VisualPlan. For EACH scene, decompose it into 2 to 4 micro "Visual Beats" (each lasting 2 to 5 seconds) that continuously evolve the visual layer, keeping the viewer visually engaged and clarifying the narrative.
+Transform the storyboard into a physical, full-bleed spatial VisualPlan. For EACH scene, decompose it into 2 to 4 micro "Visual Beats" (2 to 5 seconds each) that continuously evolve the visual layer, keeping the viewer visually engaged.
 
-15 VISUAL DIRECTOR RULES:
-1. Every visual must answer: "What should the viewer SEE while hearing this sentence?"
-2. Never add motion purely for decoration — motion must direct attention, reveal depth, or demonstrate a mechanism.
-3. Prefer concrete documentary subjects (photographic cutouts, semiconductor wafers, datacenter clusters, animated maps, telemetry gauges).
-4. Full-Frame Imagery: Important subjects should occupy a significant portion of the 1080x1920 canvas (>40%), never a tiny floating rectangle.
-5. Avoid using the same visual language consecutively (create a visual journey: Hook -> Context -> Data -> Map -> Cutout -> Diagram -> Outro).
-6. Avoid static streaks — introduce camera pushes, label reveals, or layered motion every 2–4 seconds.
-7. Use camera movement intentionally (e.g. slow push on reveals, pan across comparisons, orbit on hardware cutouts, zoom on map hubs).
-8. Multi-Layer Depth: Background (depth 0.15) -> Midground (0.50) -> Primary Subject (1.0) -> Foreground/Data (1.35) -> Typography (1.5).
-9. Typography is an editorial asset with kinetic reveals, keyword spotlighting, and structured hierarchy.
-10. Use data charts ONLY when concrete numbers exist.
-11. Safe Areas: Strictly respect ${format} mobile composition margins.
-12. Narration-Synchronization: Match visual transitions to word timestamps.
-13. Match-Cut Continuity: Morph shared geometry or colors across scene transitions.
-14. Color Treatment: Use high-contrast editorial palettes with semantic accent colors.
-15. Never default to generic gradients or placeholder boxes.`;
+MANDATORY ART DIRECTION PRINCIPLES (PHASE 7 STANDARD):
+1. FULL-CANVAS PHYSICAL COMPOSITION: The primary visual must occupy 60% to 95% of meaningful canvas. NEVER create small centered cards, floating UI boxes, or empty dashboards.
+2. 7-PLANE 2.5D SPATIAL DEPTH: Organize every beat across 7 depth layers (Background 0.15 -> BackgroundMid 0.35 -> Midground 0.60 -> Subject 1.00 -> Foreground 1.35 -> Typography 1.50 -> EditorialMarks 1.65).
+3. DOMINANT SUBJECT MONOLITHS: Every scene must have ONE unmistakable dominant visual subject (e.g. 3D perspective die, skewed monolith towers, extreme macro photographic crop, or planetary telemetry corridors).
+4. BRUTALIST DISPLAY TYPOGRAPHY: Headlines must be massive (72px to 140px, bold tracking), hero statistics must be monolithic (140px to 365px), paired with monospace metadata tags.
+5. CONCRETE VISUAL METAPHORS: For every abstract concept, create a concrete visual metaphor (e.g. magnetic plasma confinement -> toroidal glowing chamber; sub-millisecond execution -> laser scan line across optical fiber routes).
+6. 16 DIVERSE VISUAL FAMILIES: Alternate languages (cinematic-photo -> technical-diagram -> data-story -> geographic-story -> editorial-paper -> cinematic-statistic -> cinematic-outro).
+7. NARRATION-SYNCHRONIZED MOTION: Tie camera moves and element reveals to word timestamps.
+8. MATCH-CUT TRANSITIONS: Connect scene boundaries with shared geometric elements or continuous camera momentum.
 
-  const promptMessage = `Create the cinematic VisualPlan for:
+Return a strict JSON object conforming to the VisualPlanSchema.`;
+
+  const promptMessage = `Create the Phase 7 Broadcast VisualPlan for:
 Title: "${content.title}"
 Storyboard Summary: ${storyboard.map(s => `Scene ${s.sceneNumber} (${s.type}, ${s.durationFrames}f): "${s.title}" — Narration: "${s.narrationText || ''}"`).join('\n')}
-Word Timestamps Available: ${words.slice(0, 30).map(w => `${w.word} (${w.start.toFixed(1)}s)`).join(', ')}...
+Word Timestamps Available: ${words.slice(0, 35).map(w => `${w.word} (${w.start.toFixed(1)}s)`).join(', ')}...
 Research Facts: ${researchFacts.join(' | ')}
 Duration: ${totalFrames} frames (${durationSeconds}s @ 30fps)`;
 
@@ -64,18 +59,13 @@ export function generateDeterministicVisualPlan(
   format: '9:16' | '16:9' | '1:1',
   totalFrames: number
 ): VisualPlan {
-  const isInfrastructure = content.title.toLowerCase().includes('infra') || content.title.toLowerCase().includes('chip') || content.title.toLowerCase().includes('ai');
-  const isRobotics = content.title.toLowerCase().includes('robot') || content.title.toLowerCase().includes('humanoid');
-  const isFintech = content.title.toLowerCase().includes('nanosecond') || content.title.toLowerCase().includes('trillion') || content.title.toLowerCase().includes('financ');
-
-  // 7 distinct documentary visual languages
   const visualLanguages = [
     'cinematic-photo',
     'editorial-paper',
     'data-story',
     'geographic-story',
-    'cutout-explainer',
     'technical-diagram',
+    'cinematic-statistic',
     'cinematic-outro',
   ];
 
@@ -94,8 +84,7 @@ export function generateDeterministicVisualPlan(
     const camMove = cameraMoves[idx % cameraMoves.length];
     const halfDur = Math.floor(scene.durationFrames / 2);
     const restDur = scene.durationFrames - halfDur;
-
-    const sourceCite = content.research_sources?.[0]?.title || 'CATALYST RESEARCH // 2026';
+    const sourceCite = content.research_sources?.[0]?.title || 'CATALYST INVESTIGATION // 2026';
 
     return {
       sceneId: scene.id || `scene-${idx + 1}`,
@@ -117,23 +106,40 @@ export function generateDeterministicVisualPlan(
           startFrame: 0,
           durationInFrames: halfDur,
           narrativePurpose: `Establish primary subject for ${scene.title}`,
-          visualIntent: 'Full-frame subject anchor with atmospheric depth',
+          visualIntent: 'Full-frame monolithic subject anchor with atmospheric depth',
+          visualMetaphor: `${scene.title} physical architecture`,
           primaryVisual: vLang,
           secondaryVisuals: ['editorial-paper'],
+          composition: {
+            anchor: 'full-bleed',
+            focalPoint: { x: 50, y: 50 },
+            occupancyPct: 85,
+            safeZoneRespect: true,
+            negativeSpaceOrientation: 'top',
+          },
           assets: [{
             type: idx === 0 ? 'photo' as const : idx === 3 ? 'map' as const : 'photo' as const,
             subject: scene.title,
-            treatment: idx === 4 ? 'cutout_shadow' as const : 'cinematic_macro' as const,
+            treatment: idx === 4 ? 'blueprint_inverted' as const : 'cinematic_macro' as const,
             aspectRatio: '16:9' as const,
+            canvasCoveragePct: 85,
           }],
-          layers: ['background', 'midground', 'subject', 'typography'],
-          camera: { movement: camMove, intensity: 0.2, easing: 'ease-out' as const, focalPoint: { x: 50, y: 50 } },
+          layers: ['background', 'midground', 'subject', 'typography', 'editorialMarks'],
+          layerSpecs: [
+            { id: `s${idx + 1}-b1-bg`, role: 'background', depth: 0.15, transform: { x: 0, y: 0, scale: 1.35, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+            { id: `s${idx + 1}-b1-sub`, role: 'subject', depth: 1.0, transform: { x: 0, y: 0, scale: 1.0, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+            { id: `s${idx + 1}-b1-typ`, role: 'typography', depth: 1.5, transform: { x: 0, y: 0, scale: 1.0, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+            { id: `s${idx + 1}-b1-marks`, role: 'editorialMarks', depth: 1.65, transform: { x: 0, y: 0, scale: 1.0, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+          ],
+          camera: { movement: camMove, intensity: 0.22, easing: 'ease-out' as const, focalPoint: { x: 50, y: 50 } },
           motion: ['spring_in', 'slow_drift'],
           typography: {
-            treatment: 'editorial_kinetic' as const,
+            treatment: 'brutalist_display' as const,
+            eyebrow: `0${idx + 1} // ${scene.type.toUpperCase()}`,
             headline: (scene.props?.headline || scene.title).toUpperCase(),
             emphasisWords: scene.title.split(' ').slice(0, 2),
-            position: 'center' as const,
+            position: 'top' as const,
+            fontScale: 'display_giant' as const,
           },
           transition: { type: 'fade' as const, durationFrames: 10, sharedGeometry: 'none' as const, direction: 'right' as const },
           props: {
@@ -149,17 +155,33 @@ export function generateDeterministicVisualPlan(
           durationInFrames: restDur,
           narrativePurpose: `Reveal technical context and data for ${scene.title}`,
           visualIntent: 'Layered documentary depth and active metric progression',
+          visualMetaphor: `${scene.title} empirical evidence`,
           primaryVisual: vLang === 'cinematic-photo' ? 'editorial-paper' : vLang === 'technical-diagram' ? 'blueprint' : vLang === 'data-story' ? 'cinematic-statistic' : vLang,
           secondaryVisuals: ['technical-diagram'],
+          composition: {
+            anchor: 'full-bleed',
+            focalPoint: { x: 50, y: 50 },
+            occupancyPct: 88,
+            safeZoneRespect: true,
+            negativeSpaceOrientation: 'top',
+          },
           assets: [],
-          layers: ['background', 'midground', 'subject', 'foreground', 'typography'],
+          layers: ['background', 'midground', 'subject', 'foreground', 'typography', 'editorialMarks'],
+          layerSpecs: [
+            { id: `s${idx + 1}-b2-bg`, role: 'background', depth: 0.15, transform: { x: 0, y: 0, scale: 1.35, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+            { id: `s${idx + 1}-b2-sub`, role: 'subject', depth: 1.0, transform: { x: 0, y: 0, scale: 1.0, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+            { id: `s${idx + 1}-b2-fg`, role: 'foreground', depth: 1.35, transform: { x: 0, y: 0, scale: 1.0, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+            { id: `s${idx + 1}-b2-typ`, role: 'typography', depth: 1.5, transform: { x: 0, y: 0, scale: 1.0, rotation: 0, opacity: 1, blurPx: 0 }, visible: true, customProps: {} },
+          ],
           camera: { movement: 'push' as const, intensity: 0.26, easing: 'ease-out' as const, focalPoint: { x: 50, y: 50 } },
-          motion: ['counter_start', 'diagram_pulse'],
+          motion: ['counter_start', 'laser_scan'],
           typography: {
             treatment: 'keyword_spotlight' as const,
+            eyebrow: `0${idx + 1} // EMPIRICAL EVIDENCE`,
             headline: (scene.props?.headline || scene.title).toUpperCase(),
             emphasisWords: [scene.title.split(' ')[0] || 'KEY'],
-            position: 'bottom' as const,
+            position: 'top' as const,
+            fontScale: 'display_giant' as const,
           },
           transition: { type: 'fade' as const, durationFrames: 10, sharedGeometry: 'none' as const, direction: 'right' as const },
           props: {

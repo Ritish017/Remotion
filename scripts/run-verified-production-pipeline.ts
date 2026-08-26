@@ -1,5 +1,9 @@
+// @ts-ignore
+Object.defineProperty(globalThis, 'remotion_imported', { get: () => undefined, set: () => {} });
+
 import dotenv from 'dotenv';
 dotenv.config({ override: true });
+process.env.REMOTION_IGNORE_MULTIPLE_VERSIONS = 'true';
 
 import fs from 'fs';
 import path from 'path';

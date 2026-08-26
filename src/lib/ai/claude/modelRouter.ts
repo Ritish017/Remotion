@@ -1,10 +1,4 @@
-/**
- * ModelRouter — Dynamic & Configurable Model Routing for Catalyst Content OS
- * 
- * Supports Anthropic's flagship models:
- * - Primary Director: `CLAUDE_PRIMARY_MODEL` (default: `claude-opus-5`) with max effort / adaptive thinking
- * - Fast Transformation: `CLAUDE_FAST_MODEL` (default: `claude-sonnet-5`)
- */
+import { modelRegistry, type CreativeIntelligenceTask } from '@/lib/config/models';
 
 export type ModelTask = 
   | 'editorial_planning'
@@ -32,8 +26,8 @@ export class ModelRouter {
 
   private constructor() {
     this.config = {
-      primaryModel: process.env.CLAUDE_PRIMARY_MODEL || 'claude-opus-5',
-      fastModel: process.env.CLAUDE_FAST_MODEL || 'claude-sonnet-5',
+      primaryModel: modelRegistry.getPrimaryModel(),
+      fastModel: modelRegistry.getAuxiliaryModel(),
       enableAdaptiveThinking: true,
       maxThinkingEffort: 'max',
     };

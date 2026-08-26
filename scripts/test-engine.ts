@@ -1,3 +1,6 @@
+// @ts-ignore
+Object.defineProperty(globalThis, 'remotion_imported', { get: () => undefined, set: () => {} });
+
 import dotenv from 'dotenv';
 dotenv.config({ override: true });
 

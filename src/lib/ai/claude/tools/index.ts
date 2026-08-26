@@ -72,6 +72,7 @@ export const ALLOWLISTED_TOOLS: Record<string, ToolDefinition> = {
         if (s.sceneNumber !== sceneNumber) return s;
         return {
           ...s,
+          headline: modifications.headline !== undefined ? modifications.headline : s.headline,
           templateId: modifications.templateId || s.templateId,
           durationFrames: modifications.durationFrames || s.durationFrames,
           camera: modifications.camera ? { ...s.camera, ...modifications.camera } : s.camera,
@@ -85,9 +86,11 @@ export const ALLOWLISTED_TOOLS: Record<string, ToolDefinition> = {
       };
 
       const validation = validateVideoSpec(updatedSpec);
+      const finalSpec = validation.repairedSpec || updatedSpec;
       return {
         success: validation.valid,
-        spec: validation.repairedSpec || updatedSpec,
+        spec: finalSpec,
+        updatedSpec: finalSpec,
         warnings: validation.warnings,
       };
     },

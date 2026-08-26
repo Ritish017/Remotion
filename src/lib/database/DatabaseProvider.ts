@@ -60,8 +60,25 @@ export interface EpisodeRecord {
   topic: string;
   status: string;
   scheduledDate?: string;
+  researchJson?: string;
+  scriptJson?: string;
+  storyboardJson?: string;
+  videoSpecId?: string;
+  qaReportJson?: string;
+  renderJobId?: string;
+  approvedAt?: string;
+  renderedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UnifiedEpisodeState {
+  episode: EpisodeRecord;
+  videoSpec?: any;
+  dna?: any;
+  renderJob?: any;
+  sources?: ResearchSourceRecord[];
+  facts?: ResearchFactRecord[];
 }
 
 export interface VideoSpecRecord {
@@ -93,6 +110,60 @@ export interface ResearchFactRecord {
   category?: string;
   confidence: number;
   extractedAt: string;
+}
+
+export interface CampaignRecord {
+  id: string;
+  name: string;
+  description?: string;
+  niche?: string;
+  targetAudience?: string;
+  platformsJson: string;
+  publishingFrequency?: string;
+  contentPillarsJson: string;
+  tone?: string;
+  editorialIdentityJson?: string;
+  visualIdentityJson?: string;
+  preferredDurationSeconds?: number;
+  aspectRatiosJson?: string;
+  narrationStyleJson?: string;
+  ctaStrategyJson?: string;
+  monthlyStrategyJson?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EpisodeDNARecord {
+  id: string;
+  episodeId: string;
+  campaignId?: string;
+  dnaJson: string;
+  visualNoveltyScore?: number;
+  noveltyBreakdownJson?: string;
+  createdAt: string;
+}
+
+export interface CampaignMemoryRecord {
+  id: string;
+  campaignId: string;
+  memoryType: string;
+  content: string;
+  metadataJson?: string;
+  createdAt: string;
+}
+
+export interface VisualStyleMemoryRecord {
+  id: string;
+  campaignId?: string;
+  episodeId: string;
+  visualLanguage: string;
+  compositionLanguage?: string;
+  motionLanguage?: string;
+  cameraLanguage?: string;
+  paletteId?: string;
+  metaphorsJson?: string;
+  dnaJson: string;
+  createdAt: string;
 }
 
 export interface ProviderUsageRecord {
@@ -131,11 +202,30 @@ export interface DatabaseProvider {
 
   createEpisode(episode: Omit<EpisodeRecord, 'createdAt' | 'updatedAt'>): Promise<EpisodeRecord>;
   getEpisode(id: string): Promise<EpisodeRecord | null>;
-  listEpisodes(projectId?: string): Promise<EpisodeRecord[]>;
+  updateEpisode(id: string, updates: Partial<EpisodeRecord>): Promise<EpisodeRecord | null>;
+  listEpisodes(projectIdOrCampaignId?: string): Promise<EpisodeRecord[]>;
+  getUnifiedEpisodeState(episodeId: string): Promise<UnifiedEpisodeState | null>;
+
+  // Campaigns & Editorial Calendars
+  createCampaign(campaign: Omit<CampaignRecord, 'createdAt' | 'updatedAt'>): Promise<CampaignRecord>;
+  getCampaign(id: string): Promise<CampaignRecord | null>;
+  listCampaigns(): Promise<CampaignRecord[]>;
+  updateCampaign(id: string, updates: Partial<CampaignRecord>): Promise<CampaignRecord | null>;
+
+  // Episode DNA & Anti-Generic Memory
+  saveEpisodeDNA(record: Omit<EpisodeDNARecord, 'createdAt'>): Promise<EpisodeDNARecord>;
+  getEpisodeDNA(episodeId: string): Promise<EpisodeDNARecord | null>;
+
+  saveCampaignMemory(memory: Omit<CampaignMemoryRecord, 'createdAt'>): Promise<CampaignMemoryRecord>;
+  listCampaignMemory(campaignId: string, memoryType?: string): Promise<CampaignMemoryRecord[]>;
+
+  saveVisualStyleMemory(record: Omit<VisualStyleMemoryRecord, 'createdAt'>): Promise<VisualStyleMemoryRecord>;
+  listVisualStyleMemory(campaignId?: string, limit?: number): Promise<VisualStyleMemoryRecord[]>;
 
   // Video Specs
   saveVideoSpec(spec: Omit<VideoSpecRecord, 'createdAt' | 'updatedAt'>): Promise<VideoSpecRecord>;
   getVideoSpec(id: string): Promise<VideoSpecRecord | null>;
+  getVideoSpecByEpisode(episodeId: string): Promise<VideoSpecRecord | null>;
   listVideoSpecs(projectId?: string): Promise<VideoSpecRecord[]>;
 
   // Research Sources & Facts
@@ -149,3 +239,4 @@ export interface DatabaseProvider {
   recordProviderUsage(usage: Omit<ProviderUsageRecord, 'id' | 'timestamp'>): Promise<ProviderUsageRecord>;
   getProviderUsageStats(): Promise<ProviderUsageRecord[]>;
 }
+

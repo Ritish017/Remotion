@@ -51,24 +51,28 @@ export function assembleVideoSpecV2(params: AssembleV2Params): VideoSpec {
   const width = format === '9:16' ? 1080 : format === '16:9' ? 1920 : 1080;
   const height = format === '9:16' ? 1920 : format === '16:9' ? 1080 : 1080;
   const fps = 30;
-  const totalFrames = durationSeconds * fps;
+  const totalFrames = Math.round(durationSeconds * fps);
 
   let currentStart = 0;
   const syncedScenes: SceneData[] = storyboard.map((s, idx) => {
     const isLast = idx === storyboard.length - 1;
-    const dur = isLast ? totalFrames - currentStart : s.durationFrames;
-    const startFrame = currentStart;
+    const dur = Math.round(isLast ? totalFrames - currentStart : s.durationFrames);
+    const startFrame = Math.round(currentStart);
     currentStart += dur;
 
     const planScene = visualPlan.scenes[idx];
+    const beatCount = planScene?.beats?.length || 1;
+    const beatDur = Math.max(1, Math.floor(dur / beatCount));
+
     const visualBeats = planScene?.beats?.map((b, bIdx) => {
-      const beatDur = Math.max(1, Math.round(dur / (planScene.beats?.length || 1)));
+      const isLastBeat = bIdx === beatCount - 1;
+      const bDuration = isLastBeat ? Math.max(1, dur - bIdx * beatDur) : beatDur;
       const assetUrl = resolvedAssets.resolvedAssets[idx]?.url || b.assets[0]?.url;
       return {
         ...b,
         beatIndex: bIdx,
-        startFrame: Math.round((dur / (planScene.beats?.length || 1)) * bIdx),
-        durationInFrames: bIdx === (planScene.beats?.length || 1) - 1 ? dur - bIdx * beatDur : beatDur,
+        startFrame: Math.round(bIdx * beatDur),
+        durationInFrames: Math.round(bDuration),
         props: {
           ...(b.props || {}),
           imageUrl: assetUrl || b.props?.imageUrl,

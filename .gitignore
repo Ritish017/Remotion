@@ -57,3 +57,7 @@ storage/
 
 # MCP config (contains access tokens)
 .mcp.json
+
+# Local Cloned Reference Repositories
+official-remotion/
+research/reference/

@@ -25,8 +25,8 @@ export function validateVisualDiversity(spec: VideoSpec): VisualDiversityReport 
 
     if (scene.visualBeats && scene.visualBeats.length > 0) {
       for (const beat of scene.visualBeats) {
-        visualLanguages.push(beat.primaryVisual);
-        if (beat.camera) {
+        visualLanguages.push(beat.primaryVisual || 'editorial-paper');
+        if (beat.camera?.movement) {
           cameraMovements.push(beat.camera.movement);
         }
       }

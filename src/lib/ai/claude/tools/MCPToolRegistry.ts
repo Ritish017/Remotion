@@ -74,7 +74,8 @@ export class MCPToolRegistry {
         const q = (input.query || '').toLowerCase();
         const matches = ASSET_REGISTRY.filter((a) =>
           a.tags.some((t) => t.toLowerCase().includes(q)) ||
-          a.alt.toLowerCase().includes(q)
+          a.description.toLowerCase().includes(q) ||
+          a.visualMeaning.toLowerCase().includes(q)
         );
         return { results: matches.length > 0 ? matches : ASSET_REGISTRY.slice(0, 3) };
       }

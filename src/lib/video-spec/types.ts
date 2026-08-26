@@ -278,6 +278,8 @@ export interface AudioSystemSpec {
   sfx: SFXTrigger[];
 }
 
+import type { EpisodeDNA } from './dna';
+
 export interface VideoSpec {
   version: '1.0.0' | '2.0.0' | string;
   id: string;
@@ -295,6 +297,8 @@ export interface VideoSpec {
     durationInFrames: number;
   };
   brand: BrandDNA;
+  episodeDNA?: EpisodeDNA;
+  noveltyScore?: number;
   narration: NarrationData;
   scenes: SceneData[];
   audio: AudioSystemSpec;
@@ -312,3 +316,6 @@ export interface VideoSpec {
     versionTag?: string;
   };
 }
+
+export type { EpisodeDNA };
+

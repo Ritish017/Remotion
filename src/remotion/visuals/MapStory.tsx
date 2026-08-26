@@ -2,12 +2,15 @@
 
 import React from 'react';
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { CorridorFlightArcs } from './primitives/CorridorFlightArcs';
+import { ASSET_REGISTRY } from '@/lib/assets/registry';
 import type { BrandDNA } from '@/lib/video-spec/types';
 
 export interface MapStoryProps {
   headline?: string;
   subhead?: string;
   region?: string;
+  sourceTag?: string;
   markers?: Array<{ id: string; label: string; x: number; y: number; info?: string; active?: boolean }>;
   routes?: Array<{ from: string; to: string; label?: string }>;
   brand?: BrandDNA;
@@ -17,18 +20,16 @@ export interface MapStoryProps {
 }
 
 export const MapStory: React.FC<MapStoryProps> = ({
-  headline = 'GLOBAL SILICON ACCELERATION',
-  subhead = 'Transcontinental Neuromorphic Development Corridor',
-  region = 'TRANSCONTINENTAL CORRIDOR',
+  headline = 'TRANSCONTINENTAL CORRIDORS',
+  subhead = 'Global Sovereign Supply Chains & High-Bandwidth Transit Arcs',
+  region = 'GLOBAL GEOGRAPHIC MATRIX',
+  sourceTag = 'NOCTURNAL SATELLITE TELEMETRY // 2026',
   markers = [
-    { id: 'taiwan', label: 'Taiwan (TSMC)', x: 78, y: 52, info: '3nm Wafer Fab Hub', active: true },
-    { id: 'sv', label: 'Silicon Valley', x: 24, y: 38, info: 'Neural Architecture Cluster', active: true },
-    { id: 'europe', label: 'Munich (ASML / Zeiss)', x: 48, y: 30, info: 'EUV Optics Center', active: true },
+    { id: 'asia', label: 'Tokyo / Taipei', x: 80, y: 45, info: 'Fab & Assembly Hub', active: true },
+    { id: 'us', label: 'North America', x: 25, y: 35, info: 'Architecture & Compute', active: true },
+    { id: 'eu', label: 'Western Europe', x: 50, y: 28, info: 'Lithography Optics', active: true },
   ],
-  routes = [
-    { from: 'europe', to: 'taiwan', label: 'High-NA Lithography Optics' },
-    { from: 'taiwan', to: 'sv', label: 'Sub-3nm Silicon Shipments' },
-  ],
+  routes = [],
   brand,
   durationInFrames,
   className = '',
@@ -37,278 +38,146 @@ export const MapStory: React.FC<MapStoryProps> = ({
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const primaryColor = brand?.colors.primary || '#f0522a';
-  const secondaryColor = brand?.colors.secondary || '#00c9a7';
-  const accentColor = brand?.colors.accent || '#ffd166';
+  const accentColor = brand?.colors.accent || '#ffc857';
+  const mintColor = brand?.colors.secondary || '#64e2c5';
 
   const introSpring = spring({ frame, fps, config: { damping: 14, stiffness: 100 } });
-  const pulsePhase = (frame * 0.12) % (Math.PI * 2);
+  const mapAsset = ASSET_REGISTRY[3]?.url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=85';
 
   return (
     <div
-      className={`relative w-full h-full select-none ${className}`}
+      className={`relative w-full h-full select-none overflow-hidden ${className}`}
       style={{
         position: 'absolute',
         inset: 0,
         width: '100%',
         height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '140px 56px 180px 56px',
-        backgroundColor: '#0b0d13',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
+        backgroundColor: '#090b10',
         ...style,
       }}
     >
-      {/* Top Header */}
+      {/* Background Nocturnal Earth Satellite Image (Full Bleed Scale 135%) */}
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          transform: `scale(${interpolate(frame, [0, durationInFrames], [1.25, 1.45])})`,
+          filter: 'contrast(1.42) brightness(0.65) saturate(0.9)',
+          transformOrigin: 'center center',
+          willChange: 'transform',
+        }}
+      >
+        <img
+          src={mapAsset}
+          alt="Satellite Map"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
+
+      {/* Atmospheric Radial Vignette */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at 50% 50%, transparent 20%, rgba(9,11,16,0.6) 65%, #090b10 100%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Frame Border Inset (Phase 6 Signature) */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: '28px',
+          border: '1px solid rgba(246,241,231,0.18)',
+          pointerEvents: 'none',
+          zIndex: 15,
+        }}
+      />
+
+      {/* Top Header & Monospace Eyebrow */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '120px',
+          left: '64px',
+          right: '64px',
           zIndex: 10,
           opacity: interpolate(introSpring, [0, 1], [0, 1]),
         }}
       >
         <div
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '6px 14px',
-            borderRadius: '8px',
-            backgroundColor: 'rgba(20, 184, 166, 0.15)',
-            border: '1px solid rgba(20, 184, 166, 0.35)',
             fontFamily: 'JetBrains Mono, monospace',
-            fontWeight: 700,
-            fontSize: '13px',
-            letterSpacing: '0.1em',
-            color: '#2dd4bf',
-            marginBottom: '10px',
+            fontSize: '18px',
+            fontWeight: 800,
+            letterSpacing: '3.2px',
+            color: accentColor,
+            textTransform: 'uppercase',
+            borderLeft: `5px solid ${accentColor}`,
+            paddingLeft: '13px',
+            marginBottom: '14px',
           }}
         >
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '9999px',
-              backgroundColor: '#2dd4bf',
-              display: 'inline-block',
-            }}
-          />
-          GEOGRAPHIC INTELLIGENCE // {region}
+          04 // {region}
         </div>
-        <h2
+
+        <div
           style={{
-            fontSize: '42px',
-            fontWeight: 900,
-            fontFamily: 'Inter, system-ui, sans-serif',
-            letterSpacing: '-0.02em',
-            color: '#ffffff',
-            lineHeight: 1.1,
-            margin: 0,
+            color: '#f6f1e7',
+            fontFamily: 'Arial Black, Arial, sans-serif',
+            fontSize: '76px',
+            letterSpacing: '-4px',
+            lineHeight: 0.88,
+            textTransform: 'uppercase',
+            textShadow: '0 5px 22px #000, 0 10px 40px rgba(0,0,0,0.8)',
+            maxWidth: '920px',
           }}
         >
           {headline}
-        </h2>
-        <p
-          style={{
-            fontSize: '18px',
-            color: '#94a3b8',
-            fontFamily: 'JetBrains Mono, monospace',
-            margin: '6px 0 0 0',
-          }}
-        >
-          {subhead}
-        </p>
+        </div>
+
+        {subhead && (
+          <div
+            style={{
+              fontSize: '28px',
+              fontFamily: 'Georgia, serif',
+              color: '#e2e8f0',
+              marginTop: '16px',
+              maxWidth: '820px',
+              lineHeight: 1.2,
+            }}
+          >
+            {subhead}
+          </div>
+        )}
       </div>
 
-      {/* Center World Geo Visualizer - Large Canvas */}
+      {/* Full-Canvas Ballistic Flight Corridor Paths */}
+      <CorridorFlightArcs
+        amberColor={accentColor}
+        mintColor={mintColor}
+        durationInFrames={durationInFrames}
+      />
+
+      {/* Bottom Source Tag */}
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
+          right: '64px',
+          bottom: '72px',
+          color: mintColor,
+          fontFamily: 'monospace',
+          fontSize: '15px',
+          letterSpacing: '2.2px',
+          fontWeight: 800,
           zIndex: 10,
-          width: '100%',
-          height: '750px',
-          margin: 'auto 0',
-          borderRadius: '32px',
-          backgroundColor: 'rgba(15, 19, 29, 0.94)',
-          border: '2px solid rgba(255, 255, 255, 0.18)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
-          overflow: 'hidden',
-          padding: '24px',
-          boxSizing: 'border-box',
-          backdropFilter: 'blur(16px)',
+          textTransform: 'uppercase',
         }}
       >
-        {/* World Grid Matrix */}
-        <svg viewBox="0 0 1000 600" style={{ width: '100%', height: '100%' }}>
-          <defs>
-            <radialGradient id="mapGlow" cx="50%" cy="50%" r="60%">
-              <stop offset="0%" stopColor="#1e293b" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#0b0d13" stopOpacity="0.98" />
-            </radialGradient>
-            <linearGradient id="routeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={secondaryColor} />
-              <stop offset="50%" stopColor={accentColor} />
-              <stop offset="100%" stopColor={primaryColor} />
-            </linearGradient>
-            <filter id="nodeGlow">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
-
-          <rect width="1000" height="600" fill="url(#mapGlow)" rx="20" />
-
-          {/* Latitude & Longitude Coordinate Lines */}
-          <g opacity="0.10" stroke="#ffffff" strokeWidth="1">
-            <line x1="0" y1="150" x2="1000" y2="150" strokeDasharray="6 6" />
-            <line x1="0" y1="300" x2="1000" y2="300" strokeDasharray="6 6" />
-            <line x1="0" y1="450" x2="1000" y2="450" strokeDasharray="6 6" />
-            <line x1="250" y1="0" x2="250" y2="600" strokeDasharray="6 6" />
-            <line x1="500" y1="0" x2="500" y2="600" strokeDasharray="6 6" />
-            <line x1="750" y1="0" x2="750" y2="600" strokeDasharray="6 6" />
-          </g>
-
-          {/* Continents Vector Silhouettes */}
-          {/* North America */}
-          <path
-            d="M120,120 Q180,90 280,110 T320,240 T220,380 T140,240 Z"
-            fill="rgba(255,255,255,0.06)"
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth="2"
-          />
-          {/* Europe & Asia */}
-          <path
-            d="M440,110 Q560,70 780,90 T900,240 T720,400 T520,340 T440,180 Z"
-            fill="rgba(255,255,255,0.06)"
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth="2"
-          />
-
-          {/* Connecting Routes with Animated Pulses */}
-          {routes.map((route, idx) => {
-            const m1 = markers.find((m) => m.id === route.from);
-            const m2 = markers.find((m) => m.id === route.to);
-            if (!m1 || !m2) return null;
-
-            const x1 = m1.x * 10;
-            const y1 = m1.y * 6;
-            const x2 = m2.x * 10;
-            const y2 = m2.y * 6;
-
-            const midX = (x1 + x2) / 2;
-            const midY = Math.min(y1, y2) - 80;
-
-            const routeSpring = spring({ frame: frame - 8 - idx * 8, fps, config: { damping: 14, stiffness: 80 } });
-
-            return (
-              <g key={idx}>
-                <path
-                  d={`M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`}
-                  fill="none"
-                  stroke="url(#routeGrad)"
-                  strokeWidth="4"
-                  strokeDasharray="10 8"
-                  opacity={interpolate(routeSpring, [0, 1], [0, 0.95])}
-                />
-                {route.label && (
-                  <text
-                    x={midX}
-                    y={midY - 14}
-                    fill={accentColor}
-                    fontSize="13"
-                    fontFamily="JetBrains Mono, monospace"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    opacity={interpolate(routeSpring, [0, 1], [0, 1])}
-                  >
-                    {route.label}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Geo Markers */}
-          {markers.map((m, idx) => {
-            const markerSpring = spring({ frame: frame - idx * 6, fps, config: { damping: 12, stiffness: 100 } });
-            const cx = m.x * 10;
-            const cy = m.y * 6;
-
-            return (
-              <g
-                key={m.id}
-                transform={`translate(${cx}, ${cy}) scale(${markerSpring})`}
-              >
-                {/* Outer Concentric Radar Waves */}
-                <circle
-                  r={26 + Math.sin(pulsePhase + idx) * 10}
-                  fill="none"
-                  stroke={accentColor}
-                  strokeWidth="2.5"
-                  opacity={0.6 + Math.sin(pulsePhase + idx) * 0.4}
-                />
-                <circle
-                  r={44 + Math.sin(pulsePhase + idx) * 14}
-                  fill="none"
-                  stroke={secondaryColor}
-                  strokeWidth="1.5"
-                  strokeDasharray="6 6"
-                  opacity={0.4}
-                />
-
-                {/* Center Node Bulb */}
-                <circle
-                  r="12"
-                  fill={accentColor}
-                  stroke="#000000"
-                  strokeWidth="3"
-                  filter="url(#nodeGlow)"
-                />
-
-                {/* Marker Card Tag */}
-                <g transform="translate(22, -26)">
-                  <rect
-                    width="220"
-                    height="54"
-                    rx="10"
-                    fill="#161922"
-                    stroke="rgba(255,255,255,0.30)"
-                    strokeWidth="2"
-                    filter="url(#nodeGlow)"
-                  />
-                  <text x="14" y="24" fill="#ffffff" fontSize="15" fontWeight="900" fontFamily="Inter, system-ui, sans-serif">
-                    {m.label}
-                  </text>
-                  <text x="14" y="42" fill={secondaryColor} fontSize="12" fontFamily="JetBrains Mono, monospace" fontWeight="bold">
-                    {m.info || 'ACTIVE SOVEREIGN NODE'}
-                  </text>
-                </g>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-
-      {/* Bottom Telemetry Status */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '14px',
-          fontFamily: 'JetBrains Mono, monospace',
-          color: '#94a3b8',
-          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-          paddingTop: '16px',
-        }}
-      >
-        <span>GLOBAL TRANSIT CORRIDOR // TSMC 3NM</span>
-        <span style={{ color: secondaryColor }}>FABRICATION ALLIANCE ACTIVE</span>
+        {sourceTag}
       </div>
     </div>
   );

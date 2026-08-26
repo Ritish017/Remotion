@@ -274,11 +274,46 @@ export async function executeLocalRenderAsync(jobId: string, spec: VideoSpec): P
       const { extract11DocumentaryFrames } = await import('./frameExtractor');
       await extract11DocumentaryFrames(outputAbsolutePath, durationSeconds, qaOutputDir, jobId);
       console.log(`📸 [LocalRenderer] Extracted 11 representative frames to ${qaOutputDir}`);
+
+      // Closed-Loop Visual Critic & Auto-Repair
+      try {
+        const { autoRepairController } = await import('@/lib/qa/autoRepair');
+        const frameFiles = fs.readdirSync(qaOutputDir)
+          .filter((f) => f.endsWith('.png'))
+          .map((f) => path.join(qaOutputDir, f));
+
+        if (frameFiles.length > 0) {
+          const repairResult = await autoRepairController.executeRepairLoop(spec, frameFiles, {
+            maxIterations: 1,
+            targetScore: 8.5,
+          });
+          console.log(
+            `🤖 [LocalRenderer] Visual Critic Evaluation: Score = ${repairResult.finalScore}/10, Passed = ${
+              repairResult.passed ? 'YES' : 'NEEDS_PATCH'
+            }`
+          );
+
+          if (repairResult.auditTrail[0]?.appliedPatches > 0) {
+            const updatedSpecRecord = {
+              id: spec.id,
+              episodeId: (spec as any).episodeId || jobId,
+              specJson: JSON.stringify(repairResult.finalSpec),
+              versionTag: 'repaired-v2',
+            };
+            await db.saveVideoSpec(updatedSpecRecord).catch(() => {});
+            console.log(
+              `✨ [LocalRenderer] Applied ${repairResult.auditTrail[0].appliedPatches} Auto-Repair patches to VideoSpec [${spec.id}]`
+            );
+          }
+        }
+      } catch (repairErr: any) {
+        console.warn(`[LocalRenderer] Visual Critic Auto-Repair Notice:`, repairErr.message);
+      }
     } catch (frameErr: any) {
       console.warn(`[LocalRenderer] Frame extraction notice:`, frameErr.message);
     }
 
-    // Transition to COMPLETED
+    // Transition to COMPLETED in database
     await db.updateRenderJob(jobId, {
       status: 'COMPLETED',
       progress: 1.0,
@@ -286,6 +321,17 @@ export async function executeLocalRenderAsync(jobId: string, spec: VideoSpec): P
       duration: durationSeconds,
       completedAt: new Date().toISOString(),
     });
+
+    // If associated with an episode, update canonical episode record to COMPLETED
+    const existingJob = await db.getRenderJob(jobId);
+    if (existingJob?.episodeId) {
+      await db.updateEpisode(existingJob.episodeId, {
+        status: 'COMPLETED',
+        renderJobId: jobId,
+        renderedAt: new Date().toISOString(),
+        videoSpecId: spec.id,
+      }).catch(() => {});
+    }
 
     return {
       outputFile: outputAbsolutePath,

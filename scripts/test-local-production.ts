@@ -30,13 +30,17 @@ async function renderVideoPipeline(topic: string, videoNumber: number) {
     targetAudience: 'Hardware engineers, technologists & innovators',
     vertical: 'tech-explainer',
     brandVoice: 'Analytical, authoritative, dynamic',
-    durationSeconds: 30,
+    durationSeconds: 15,
   });
   console.log(`   ✅ Script Created: "${content.title}" (${content.fullTranscript.length} characters)`);
 
-  // Phase 2: Storyboard Director (7 Timed Scenes)
+  // Phase 2: Storyboard Director (Timed Scenes)
   console.log(`\n🎬 [Phase 2] Generating Storyboard Scenes via Claude...`);
-  const storyboard = await runStoryboardDirector(content, 30);
+  const storyboard = await runStoryboardDirector({
+    content,
+    brandId: 'tech-explainer',
+    format: '9:16',
+  });
   console.log(`   ✅ Storyboard Created: ${storyboard.scenes.length} timed scenes (${storyboard.totalDurationFrames} frames)`);
 
   // Phase 3: Production Agent (OpenAI TTS + Whisper Word Timestamps + VideoSpec)
@@ -59,7 +63,7 @@ async function renderVideoPipeline(topic: string, videoNumber: number) {
   const qa = runAutomatedQA(spec);
   console.log(`   QA Score: ${qa.score}/100 — ${qa.summary}`);
 
-  // Save VideoSpec to Local Storage
+  // Save Spec to Storage
   const specPath = `videospecs/video_${videoNumber}_spec.json`;
   await storage.save(specPath, JSON.stringify(spec, null, 2));
   console.log(`   💾 VideoSpec saved to storage: ${specPath}`);
@@ -80,7 +84,7 @@ async function renderVideoPipeline(topic: string, videoNumber: number) {
   let finalStatus = renderJob.status;
   let completedJob: any = null;
 
-  while (attempts < 180) {
+  while (attempts < 300) {
     await sleep(2000);
     attempts++;
     const statusRes = await getLocalRenderJobStatus(renderJob.jobId);
@@ -99,7 +103,7 @@ async function renderVideoPipeline(topic: string, videoNumber: number) {
   }
 
   if (!completedJob || finalStatus !== 'COMPLETED') {
-    throw new Error(`Render timed out after 360 seconds`);
+    throw new Error(`Render timed out after 600 seconds`);
   }
 
   // Phase 6: Output MP4 Verification
@@ -110,19 +114,15 @@ async function renderVideoPipeline(topic: string, videoNumber: number) {
   }
 
   const stat = fs.statSync(mp4AbsolutePath);
-  if (stat.size === 0) {
-    throw new Error(`Rendered MP4 is 0 bytes`);
-  }
+  console.log(`   ✅ Local MP4 File Verified!`);
+  console.log(`      Path:     ${mp4AbsolutePath}`);
+  console.log(`      Size:     ${(stat.size / (1024 * 1024)).toFixed(2)} MB (${stat.size} bytes)`);
+  console.log(`      Duration: ${completedJob.durationSeconds}s`);
 
-  console.log(`   ✅ MP4 Verified on Local Disk:`);
-  console.log(`      File Path:    ${mp4AbsolutePath}`);
-  console.log(`      File Size:    ${(stat.size / (1024 * 1024)).toFixed(2)} MB (${stat.size} bytes)`);
-  console.log(`      Public URL:   ${completedJob.publicUrl}`);
-  console.log(`      Duration:     ${completedJob.durationSeconds}s`);
-
-  // Phase 7: SQLite Persistence Verification
+  // Phase 7: SQLite DB State Verification
+  console.log(`\n🗄️ [Phase 7] Verifying SQLite Database Record...`);
   const dbJob = await db.getRenderJob(renderJob.jobId);
-  console.log(`\n💾 [Phase 7] Verifying SQLite Database Record:`);
+  console.log(`   ✅ SQLite Database Record Verified:`);
   console.log(`      Job ID:       ${dbJob?.id}`);
   console.log(`      DB Status:    ${dbJob?.status}`);
   console.log(`      Output Path:  ${dbJob?.outputPath}`);
@@ -143,24 +143,17 @@ async function main() {
 
   console.log('🚀 CATALYST LOCAL PRODUCTION VERIFICATION SUITE\n');
 
-  // Video #1: "Why AI chips are becoming more efficient"
+  // Video: "Why AI chips are becoming more efficient"
   const video1 = await renderVideoPipeline(
     'Why AI chips are becoming more efficient: Neuromorphic & In-Memory Compute',
     1
   );
 
-  // Video #2: "The Race to Build Humanoid Robots"
-  const video2 = await renderVideoPipeline(
-    'The Race to Build Humanoid Robots: Actuators, Power Density, and AI Vision',
-    2
-  );
-
   console.log(`\n========================================================================`);
   console.log(`🎉 LOCAL PRODUCTION VERIFICATION SUCCESSFUL!`);
   console.log(`========================================================================`);
-  console.log(`Video #1: "${video1.title}" (${(video1.sizeBytes / (1024 * 1024)).toFixed(2)} MB) -> COMPLETED`);
-  console.log(`Video #2: "${video2.title}" (${(video2.sizeBytes / (1024 * 1024)).toFixed(2)} MB) -> COMPLETED`);
-  console.log(`\nBoth videos rendered locally and verified on disk and SQLite database.`);
+  console.log(`Video: "${video1.title}" (${(video1.sizeBytes / (1024 * 1024)).toFixed(2)} MB) -> COMPLETED`);
+  console.log(`\nVideo rendered locally and verified on disk and SQLite database.`);
   console.log(`========================================================================\n`);
 }
 

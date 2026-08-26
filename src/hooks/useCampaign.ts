@@ -1,93 +1,77 @@
-import useSWR from 'swr'
-import { supabase } from '@/lib/supabase'
-import type { Campaign, Episode } from '@/lib/types'
+import useSWR from 'swr';
+import type { Campaign, MonthlyContentCalendar } from '@/lib/campaign/types';
+import type { Episode } from '@/lib/types';
 
-const fetchCampaigns = async (): Promise<Campaign[]> => {
-  const { data, error } = await supabase
-    .from('campaigns')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data || []
-}
-
-const fetchCampaign = async (id: string): Promise<Campaign | null> => {
-  const { data, error } = await supabase
-    .from('campaigns')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (error) throw error
-  return data
-}
-
-const fetchCampaignEpisodes = async (campaignId: string): Promise<Episode[]> => {
-  const { data, error } = await supabase
-    .from('episodes')
-    .select('*')
-    .eq('campaign_id', campaignId)
-    .order('episode_number', { ascending: true })
-  if (error) throw error
-  return data || []
-}
+const fetcher = (url: string) => fetch(url).then(res => {
+  if (!res.ok) throw new Error('API request failed');
+  return res.json();
+});
 
 export function useCampaigns() {
-  const { data, error, isLoading, mutate } = useSWR<Campaign[]>('campaigns', fetchCampaigns)
-  return { campaigns: data || [], error, isLoading, mutate }
+  const { data, error, isLoading, mutate } = useSWR<{ campaigns: Campaign[] }>('/api/campaigns', fetcher);
+  return { campaigns: data?.campaigns || [], error, isLoading, mutate };
 }
 
 export function useCampaign(id: string) {
-  const { data, error, isLoading, mutate } = useSWR<Campaign | null>(
-    id ? `campaign-${id}` : null,
-    () => fetchCampaign(id)
-  )
-  return { campaign: data, error, isLoading, mutate }
+  const { data, error, isLoading, mutate } = useSWR<{ campaign: Campaign }>(
+    id ? `/api/campaigns/${id}` : null,
+    fetcher
+  );
+  return { campaign: data?.campaign ? {
+    ...data.campaign,
+    // Add compatibility properties for legacy components
+    accent_color: (data.campaign as any).accent_color || '#ffd166',
+    target_platforms: (data.campaign as any).target_platforms || data.campaign.platforms || [],
+    type: (data.campaign as any).type || data.campaign.niche || 'technology',
+    status: (data.campaign as any).status || 'active',
+  } : null, error, isLoading, mutate };
 }
 
-export function useCampaignEpisodes(campaignId: string) {
-  const { data, error, isLoading, mutate } = useSWR<Episode[]>(
-    campaignId ? `campaign-episodes-${campaignId}` : null,
-    () => fetchCampaignEpisodes(campaignId)
-  )
-  return { episodes: data || [], error, isLoading, mutate }
+export function useMonthlyCalendar(campaignId: string, year: number, month: number) {
+  const { data, error, isLoading, mutate } = useSWR<MonthlyContentCalendar>(
+    campaignId ? `/api/campaigns/${campaignId}/calendar?year=${year}&month=${month}` : null,
+    fetcher
+  );
+  return { calendar: data, error, isLoading, mutate };
 }
 
-export async function createCampaign(campaign: Partial<Campaign>) {
-  const { data, error } = await supabase
-    .from('campaigns')
-    .insert(campaign)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+export async function createCampaign(campaign: Partial<Campaign>): Promise<Campaign> {
+  const res = await fetch('/api/campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(campaign),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Failed to create campaign');
+  }
+  const data = await res.json();
+  return data.campaign;
 }
 
-export async function updateCampaign(id: string, updates: Partial<Campaign>) {
-  const { data, error } = await supabase
-    .from('campaigns')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+export async function updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign> {
+  const res = await fetch(`/api/campaigns/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Failed to update campaign');
+  }
+  const data = await res.json();
+  return data.campaign;
 }
 
-export async function createEpisodeStubs(campaignId: string, count: number, startDate: string) {
-  const episodes = Array.from({ length: count }, (_, i) => {
-    const date = new Date(startDate)
-    date.setDate(date.getDate() + i)
-    return {
-      campaign_id: campaignId,
-      episode_number: i + 1,
-      status: 'idea' as const,
-      scheduled_date: date.toISOString().split('T')[0],
-    }
-  })
-  const { data, error } = await supabase
-    .from('episodes')
-    .insert(episodes)
-    .select()
-  if (error) throw error
-  return data
+export async function generateMonthlyCalendar(campaignId: string, year: number, month: number): Promise<MonthlyContentCalendar> {
+  const res = await fetch(`/api/campaigns/${campaignId}/calendar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ year, month }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Failed to generate monthly calendar');
+  }
+  return res.json();
 }

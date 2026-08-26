@@ -1,101 +1,206 @@
 # ARCHITECTURE AUDIT — CATALYST CONTENT OS
+## Autonomous Campaign-Driven Documentary Content Production Studio
 
-**Date:** 2026-08-25  
-**Role:** Principal Architect & Systems Engineer  
-**Objective:** Complete Architectural Audit prior to transforming Catalyst into a production-ready AI-native Remotion Video Creation Platform.
-
----
-
-## 1. Executive Summary
-
-Catalyst Content OS is an AI-driven video content operating system designed to manage campaigns, episodes, scripts, and video distribution. 
-
-### Current State:
-- **Web App**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui.
-- **AI Stack**: Bedrock Nova models (`nova-micro`, `nova-lite`, `nova-pro`) called via `@aws-sdk/client-bedrock-runtime`. `@anthropic-ai/sdk` is installed but was unused.
-- **Video Stack**: Relied on AWS Nova Reel (`amazon.nova-reel-v1:1`) generating 6-second abstract MP4 segments sequentially, stitched via an HTML/iframe preview player. No deterministic React-based timeline rendering existed.
-- **Python / Legacy Footprint**: An unintegrated Python subpackage (`catalyst_core/brain/`) with legacy scheduler/watchers, and legacy references to HyperFrames / local FastAPI (`http://127.0.0.1:8000`).
-- **Database**: Supabase PostgreSQL with 5 core tables (`campaigns`, `episodes`, `platform_posts`, `analytics`, `research_cache`, `live_event_states`).
-- **Storage**: AWS S3 bucket (`catalyst-videos-759433041913`).
-
-### Target State:
-- **Core Video Engine**: Remotion (React 19 + TypeScript + Remotion Player + Remotion Lambda + S3).
-- **Creative Intelligence**: Pure Anthropic Claude API (Claude 3.5 Sonnet / Haiku / Opus) with structured Zod tool validation and multi-agent director runtime.
-- **Deterministic Motion OS**: Layered 3-layer composition engine (Background, Midground, Foreground), camera systems, kinetic typography, data visualization, maps, and audio design.
-- **Zero Python/HyperFrames in Production**: All orchestration, reasoning, rendering, and previews run inside Next.js/TypeScript and Remotion Lambda.
+> **Authoritative System Audit Document**  
+> **Repository:** `Ritish017/Remotion`  
+> **State:** Post-Phase 7 Generic Production Engine  
+> **Target:** Autonomous Campaign-Driven 30-Day Documentary Studio  
+> **Date:** August 2026
 
 ---
 
-## 2. Inventory & Analysis of Subsystems
+## 1. Executive System Overview & Mission
 
-### 2.1 Frontend UI Layer (`src/app/`, `src/components/`)
-- **Root Layout (`src/app/layout.tsx`)**: Global dark-mode layout with fixed `Topbar` (52px) and `Sidebar` (60px / 220px).
-- **Campaigns Flow (`src/app/campaigns/`)**:
-  - `/campaigns`: Listing and 2-step campaign creation wizard.
-  - `/campaigns/[id]`: Campaign detail with calendar and episodes list.
-  - `/campaigns/[id]/episodes/[episodeId]`: 5-tab workspace (`Research`, `Script`, `Video`, `Distribute`, `Analytics`).
-- **Studio Pages**: `/overview`, `/generate`, `/agents`, `/library`, `/ai-teaching`, `/social`, `/football`, `/analytics`, `/settings`.
-- **Component Library (`src/components/`)**:
-  - `src/components/ui/`: 13 shadcn components (`button`, `card`, `dialog`, `badge`, `tabs`, `input`, `select`, etc.).
-  - `src/components/shared/`: 17 components including `VideoPlayer` (currently iframe-based), `ApprovalGate`, `AgentThinkingIndicator`, `MetricCard`, `PipelineTable`.
-  - `src/components/brain/`: Placeholder components (`BrainPanel`, `BrainDecisionCard`, `WorldContextFeed`).
+Catalyst Content OS is transitioning from a standalone video rendering engine to an **Autonomous Campaign-Driven Documentary Content Production Studio**.
 
-### 2.2 AI & Agent System
-- **Current Endpoint (`/api/claude/route.ts`)**: Despite the name `claude`, it routed requests to AWS Bedrock Nova Pro/Lite.
-- **Agents Hub (`/api/agents/route.ts`)**: 8 agent prompts executing on Bedrock Nova Pro with deterministic simulated fallbacks.
-- **Campaign Brain (`/api/brain/run/route.ts`)**: Autonomous decision engine (435 lines) executing on Bedrock Nova Pro.
-- **Requirement**: Replace Bedrock text logic with centralized Anthropic Claude Agent Runtime (`src/lib/ai/claude/`) with typed tool loops, schema enforcement via Zod, and specialized Director agents (Content Director, Storyboard Director, Visual Director, Production Agent, QA Agent).
+### Fundamental Core Philosophy:
+$$\text{STORY FIRST} \longrightarrow \text{VISUAL MEANING SECOND} \longrightarrow \text{MOTION THIRD} \longrightarrow \text{POLISH FOURTH}$$
 
-### 2.3 Video Rendering & Composition
-- **Current**: Sequential Nova Reel async invocations (1 clip at a time, ~75s per clip, max 512 chars prompt). Output is raw abstract video with web-based CSS text overlay in an iframe player.
-- **Deficiencies**:
-  - No deterministic timing or frame control.
-  - No native animated typography, vector charts, geo-maps, or cutouts.
-  - 1-concurrent invocation account bottleneck.
-- **Target Replacement**: Full Remotion Studio & Player infrastructure:
-  - `src/remotion/Root.tsx`
-  - `src/remotion/compositions/MasterComposition.tsx`, `VerticalExplainer.tsx`, `HorizontalExplainer.tsx`
-  - `src/remotion/scenes/` (Hook, Editorial, Cutout, Photo, Chart, Map, Timeline, Statistic, Comparison, UIExplainer, Outro)
-  - `src/remotion/motion/` (Entrances, Exits, Camera, Typography, Effects, Transitions)
-  - `src/remotion/registry/TemplateRegistry.ts`
-
-### 2.4 Database & State Management
-- **Supabase**: Active PostgreSQL backend.
-- **Existing Tables**: `campaigns`, `episodes`, `platform_posts`, `analytics`, `research_cache`, `live_event_states`, `brain_runs`, `brain_memory`.
-- **New Tables Required**:
-  - `channel_brand_dna`: Channel visual/motion/typography profiles.
-  - `video_specs`: Typed VideoSpec snapshots validated by Zod.
-  - `video_storyboards`: Detailed scene-by-scene timing and direction.
-  - `render_jobs`: Render lifecycle tracking (QUEUED, PREPARING, RENDERING, UPLOADING, COMPLETED, FAILED).
-  - `video_assets`: Asset registry (images, audio, SFX, cutouts, fonts, maps).
-  - `video_versions`: Historical versioning and rollback.
-  - `production_qa`: Automated QA logs (timing, clipping, missing assets, brand violations).
-
-### 2.5 Storage & Distribution
-- **AWS S3**: Bucket `catalyst-videos-759433041913`.
-- **Presigned URLs**: Used for secure downloads and preview streams.
-- **Ayrshare**: Social publishing integration in `/api/post`.
-- **YouTube API**: Competitor intelligence in `/api/research`.
+The platform is designed to produce comprehensive monthly editorial campaigns (e.g., *Daily AI News*, *AI Learning Series*, *Future Technology*, *Finance Explained*, *Robotics*, *Science Explained*, *Startup Intelligence*). Every episode in a 30-day calendar must receive its own distinct **Episode DNA** and achieve a **Visual Novelty Score $\ge 75$** against historical memory to ensure that every video feels like a bespoke, professionally art-directed production rather than a recycled template.
 
 ---
 
-## 3. Legacy Dependencies & Migration Plan
+## 2. End-to-End System Call Graph & Runtime Architecture
 
-| Legacy Component | Path | Current Status | Action |
-|---|---|---|---|
-| Python Brain | `catalyst_core/brain/` | Standalone Python module | Isolated. Replaced by TS Agent Runtime. |
-| Python Server | `_github_clone/server.py` | External reference | Removed from active paths. |
-| Nova Reel Video API | `src/app/api/catalyst/generate/*` | Legacy Bedrock video generator | Kept as legacy fallback, bypassed by Remotion pipeline. |
-| HTML Iframe Player | `src/app/api/catalyst/preview/*` | Web-rendered iframe | Replaced by native `<Player />` component from `@remotion/player`. |
-| HyperFrames references | `src/app/agents/page.tsx` | Simulated logs | Removed and updated to Remotion engine logs. |
-| Bedrock text routing | `src/app/api/claude/route.ts` | Bedrock masquerading as Claude | Replaced with native `@anthropic-ai/sdk` client. |
+```mermaid
+flowchart TD
+    subgraph CampaignEngine["1. Campaign & Calendar Orchestration"]
+        CampEntity["Campaign Entity\n(Brand, Pillars, Tone, Visual/Editorial Identity, Memory)"]
+        CampDir["CampaignDirector Agent (Claude Opus)\nMonthly Strategy & 30-Day Topic Matrix"]
+        CalUI["30-Day Content Calendar UI (/campaigns)\nStatus Grid: DRAFT -> RESEARCHING -> SCRIPT_READY -> DESIGNING -> PREVIEW -> RENDERING -> COMPLETED"]
+        Memory["Campaign Memory & Visual Style Memory\nTracks previous styles, metaphors, hooks, camera curves"]
+    end
+
+    subgraph EpisodeDirector["2. Autonomous Episode Director Pipeline"]
+        TopicSel["Selected Date / Topic"]
+        Research["ResearchOrchestrator\n(Firecrawl / Apify / Web / Factual Claims)"]
+        Content["ContentDirector\n(7 Narrative Beats + Cadence + Verified Sources)"]
+        AudioEng["OpenAIAudioProvider\n(TTS-1 Onyx + Whisper-1 Forced Alignment)"]
+        StoryFirst["Story-First Visual Mapper\n(Narration -> Meaning -> Emotion -> Metaphor -> Composition)"]
+        DnaEng["Episode DNA Engine\n(15 Dimensions: Palette, Typography, Motion, Texture, Camera)"]
+        NoveltyGate{"Visual Novelty Gate\nScore >= 75?"}
+        Redesign["Visual Redesign Loop\n(Recalibrate Visual Language)"]
+        VisualDir["VisualDirector\n(Spatial 7-Layer Planning + Micro-Beats)"]
+        AssetDir["AssetDirector & Cache\n(Topic-Specific Imagery & Clean Vector SVGs)"]
+        MotionDir["MotionDirector\n(24+ Semantic Motion Primitives & Temporal Phases)"]
+        ProdAgent["ProductionAgent\n(Assembles Authoritative VideoSpec v2.1.0)"]
+    end
+
+    subgraph StudioPreview["3. Live Preview & Claude Iteration Workspace"]
+        StudioUI["Remotion Production Studio (/studio & /campaigns/...)\nLive In-Browser Remotion Player + Timeline"]
+        ClaudeIter["Claude Live Iteration Drawer\nNatural Language Scene Modifications"]
+        SpecAPI["POST /api/remotion/spec\nZero-Render Realtime Timeline Updates"]
+    end
+
+    subgraph VisualCriticLoop["4. Multimodal Quality Gate & Auto-Repair"]
+        FrameEx["FrameExtractor / FFmpeg\nExtracts Keyframes (0% to 100%)"]
+        Critic["VisualCriticAgent (Claude Vision)\nComposition, Hierarchy, Anti-Dashboard, Contrast >= 8.5/10"]
+        AutoRepair{"Passed Quality Gate?"}
+        Correction["Correction Patch Application\n(Scale, Camera Intensity, Occupancy Pct)"]
+    end
+
+    subgraph LocalRendering["5. Local-First Headless Render Engine"]
+        Bundler["@remotion/bundler\nBundles src/remotion/index.ts"]
+        Renderer["@remotion/renderer (renderMedia)\nLocal Headless Chromium H.264 / CRF 18-22"]
+        Comp["MasterComposition.tsx\n7-Layer Depth Stack + Karaoke Pill Captions"]
+        DiskStore["LocalStorageProvider\n./storage/renders/<jobId>/output.mp4"]
+        SQLiteStore["SQLiteDatabaseProvider (node:sqlite)\n./storage/catalyst.db"]
+    end
+
+    CampEntity --> CampDir
+    CampDir --> CalUI
+    CalUI --> Memory
+    CalUI --> TopicSel
+    TopicSel --> Research
+    Research --> Content
+    Content --> AudioEng
+    AudioEng --> StoryFirst
+    StoryFirst --> DnaEng
+    DnaEng --> NoveltyGate
+    NoveltyGate -- "<75" --> Redesign
+    Redesign --> DnaEng
+    NoveltyGate -- ">=75" --> VisualDir
+    VisualDir --> AssetDir
+    VisualDir --> MotionDir
+    AssetDir --> ProdAgent
+    MotionDir --> ProdAgent
+    AudioEng --> ProdAgent
+    ProdAgent --> StudioUI
+    StudioUI <--> ClaudeIter
+    ClaudeIter <--> SpecAPI
+    StudioUI --> Bundler
+    Bundler --> Comp
+    Comp --> Renderer
+    Renderer --> DiskStore
+    Renderer --> SQLiteStore
+    DiskStore --> FrameEx
+    FrameEx --> Critic
+    Critic --> AutoRepair
+    AutoRepair -- "Fail" --> Correction
+    Correction --> ProdAgent
+    AutoRepair -- "Pass (>=8.5/10)" --> CalUI
+```
 
 ---
 
-## 4. Reusable Code Assets
+## 3. Comprehensive 10-Point Subsystem Audit
 
-1. **Next.js Layout & Theme**: `Sidebar.tsx`, `Topbar.tsx`, `globals.css` with sleek dark mode aesthetics.
-2. **Campaign Workspace Flow**: `src/app/campaigns/` provides the multi-step navigation.
-3. **shadcn/ui Primitives**: Complete base component suite ready in `src/components/ui/`.
-4. **SWR State Management**: Pattern established in `src/hooks/`.
-5. **AWS S3 Client**: Presigning and bucket utilities ready in `@aws-sdk/client-s3`.
+### Point 1: Repository Structure & Active vs Archived Paths
+- **Active Core Paths**:
+  - `src/lib/ai/claude/`: Primary AI orchestration and Director agents.
+  - `src/lib/video-spec/`: VideoSpec schemas, validation, visual systems, and presets.
+  - `src/remotion/`: Compositions, scenes, visual language registries, and 2.5D layer stacks.
+  - `src/lib/database/`: `SQLiteDatabaseProvider.ts` (Node 22 `DatabaseSync`), the single source of truth for local persistence.
+  - `src/lib/rendering/`: Local headless Chromium renderer (`local.ts`) and keyframe extractor (`frameExtractor.ts`).
+  - `src/components/remotion/`: In-browser live studio with Remotion Player, proportional scrubber, and scene inspectors.
+- **Archived / Disconnected Paths (To Clean Up & Bypassed)**:
+  - `src/lib/supabase.ts`: Fallback mock client (`placeholder.supabase.co`).
+  - `src/lib/video-generation.ts`: Legacy AWS Nova Reel video prompts from early prototypes.
+  - `src/app/api/catalyst/`: Legacy preview/download routes from cloud scaffolding.
+
+### Point 2: Architecture Call Graph & Layer Separation
+The codebase cleanly separates:
+1. **AI Director Layer** (`src/lib/ai/claude/agents/`): Transforms narrative concepts into typed data structures.
+2. **Schema & Contract Layer** (`src/lib/video-spec/`): Enforces structural integrity via Zod schemas.
+3. **Presentation & Motion Layer** (`src/remotion/`): Pure deterministic React components animated over frames.
+4. **Persistence Layer** (`src/lib/database/`): SQLite schema with foreign key isolation.
+5. **Execution Layer** (`src/lib/rendering/`): Bundling, headless Chrome rendering, and FFmpeg frame extraction.
+
+### Point 3: Identification of Reusable Components
+- **`RemotionProductionStudio`**: Complete real-time studio with player viewport, timeline scrubber, scene inspector, and Claude drawer.
+- **`VisualLanguageRegistry`**: Modular registry pattern supporting 20+ documentary visual languages.
+- **`LayerStack`**: 7-plane 2.5D parallax compositor with spring-based motion curves.
+- **`CameraRig`**: Spring and keyframed camera transforms (push, pull, pan, orbit, parallax).
+- **`SQLiteDatabaseProvider`**: Synchronous, robust local database engine.
+- **`OpenAIAudioProvider`**: TTS-1 speech synthesis + Whisper word forced alignment.
+- **`VisualCriticAgent`**: Claude Vision keyframe critique engine.
+- **`AutomatedQA`**: 12-suite validation gate for frame rhythm, caption timing, and visual density.
+
+### Point 4: Identification of Duplicate or Fragmented Systems
+- **Campaign Data Fetching**: `src/hooks/useCampaign.ts` and `src/hooks/useEpisode.ts` were attempting to query Supabase instead of the local SQLite database.
+- **Campaign Planning API**: `src/app/api/campaigns/plan/route.ts` used a basic prompt without episode DNA, visual style diversity, or campaign memory.
+
+### Point 5: Phase 6 & Phase 7 Visual Systems
+- **Phase 6 (Vox Editorial Engine)**:
+  - `src/lib/video-spec/visualSystem.ts`: `LockedVisualSystem`, `DocumentaryPalette`, halftone dots, paper textures, and red marker editorial marks.
+  - `src/remotion/visuals/EditorialCollage.tsx`, `EditorialMarks.tsx`.
+- **Phase 7 (Generic Multi-Topic Documentary Engine)**:
+  - `src/lib/ai/claude/agents/VisualDirector.ts`: Decomposes scenes into 2–4 micro `VisualBeat` units.
+  - `src/remotion/composition/VisualBeatRenderer.tsx`: Micro-beat sequencing with match-cut transitions.
+  - `src/remotion/visuals/primitives/`: 3D Perspective Die, Skewed Monolith Towers, Corridor Flight Arcs, Laser Scan Bars.
+
+### Point 6: Current VideoSpec Capabilities & Gaps
+- **Current VideoSpec Capabilities**:
+  - Contains `id`, `title`, `composition` (format, fps, duration), `brand` (`BrandDNA`), `narration` (words, transcript, audioUrl), `scenes` (`SceneData[]` with `visualBeats`, `camera`, `typography`, `layers`, `assets`), `audio` (music, sfx, ducking), `research_sources`, `research_facts`, `claims`.
+- **Gaps for Autonomous Campaign Studio**:
+  - Missing formal `episodeDNA` field on top-level VideoSpec.
+  - Missing `temporalPhase` mappings (`ENTRY`, `BUILD`, `EMPHASIS`, `TRANSFORMATION`, `EXIT`) per scene.
+  - Missing explicit Story-First mapping data (`narrativePurpose`, `emotionalIntent`, `visualMetaphor`, `visualProtagonist`).
+
+### Point 7: Current SQLite Entities & Required Additions
+- **Current Tables in `catalyst.db`**:
+  - `render_jobs`, `narration_artifacts`, `projects`, `channels`, `episodes`, `video_specs`, `research_sources`, `research_facts`, `provider_usage`.
+- **Required New / Enhanced Tables**:
+  - `campaigns`: Full campaign identity (name, niche, target audience, platforms, pillars, tone, visual identity, duration, aspect ratio, narration style, CTA strategy, monthly strategy).
+  - `episode_dna`: 15-attribute DNA structure linked to each episode and spec.
+  - `campaign_memory`: Topics covered, visual styles used, visual styles to avoid, hook performance, episode history.
+  - `visual_style_memory`: Historical log of compositions, motion primitives, cameras, and palettes for novelty scoring.
+
+### Point 8: Headless Local Render Pipeline
+- **Bundling**: `@remotion/bundler` bundles `src/remotion/index.ts` to temporary disk cache.
+- **Audio Delivery**: Converts local MP3/WAV files into `data:audio/wav;base64,...` URIs to eliminate Puppeteer HTTP deadlocks.
+- **Render Execution**: `@remotion/renderer` renders `MasterComposition` (1080x1920 @ 30fps) with H.264 codec.
+- **Post-Processing**: FFmpeg extracts 21 review keyframes across the timeline for Claude Vision evaluation.
+
+### Point 9: In-Browser Live Preview System
+- **Remotion Player**: Zero-latency React canvas preview in `LivePlayerViewport.tsx`.
+- **Proportional Timeline**: Visual scrubber showing scene blocks, word-level caption triggers, and audio waveforms.
+- **Live Claude Iteration**: Claude modifies the JSON VideoSpec and immediately updates the React Player state without MP4 rendering.
+
+### Point 10: Claude Agent Network & Model Routing
+- **`ModelRouter` (`src/lib/ai/claude/modelRouter.ts`)**:
+  - Routes creative art direction, story architecture, and visual critique to `CLAUDE_PRIMARY_MODEL` (default: `claude-opus-5`) with max thinking tokens.
+  - Routes structured formatting, metadata, and asset queries to `CLAUDE_FAST_MODEL` (default: `claude-sonnet-5`).
+  - Environment-configurable routing without hardcoded model strings.
+
+---
+
+## 4. Verification & Hardening Baseline
+
+Current baseline checks confirmed operational:
+- **`npm test`**: 12/12 test suites passing (Zod schema validation, template registry, automated QA, narration timeline, SQLite CRUD, storage security).
+- **`npx tsc --noEmit`**: 0 compilation errors across the entire TypeScript codebase.
+
+---
+
+## 5. Architectural Readiness Scorecard
+
+| Architectural Domain | Current Status | Readiness for Campaign Engine |
+|---|---|---|
+| **Remotion Rendering Engine** | Broadcast Grade (1080x1920 @ 30fps) | 100% Ready |
+| **Local SQLite Persistence** | Operational (`catalyst.db`) | 90% Ready (Need Campaign/DNA tables) |
+| **AI Director Agent Network** | 9 Specialized Claude Agents | 85% Ready (Need CampaignDirector & DNA Engine) |
+| **Live In-Browser Studio** | Player + Scrubber + Claude Drawer | 95% Ready |
+| **Multimodal Vision Critic** | 21-Frame Claude Vision Inspector | 90% Ready (Need closed Auto-Repair loop) |
+| **Campaign & Calendar UI** | Basic grid & listing | 60% Ready (Need 30-day strategy & status machine) |
+| **Anti-Generic Style Memory** | Not yet formalized | 0% Ready (Target implementation) |

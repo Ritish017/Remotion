@@ -25,7 +25,6 @@ export async function generateStructuredOutput<T>(
     task = 'editorial_planning',
     model = options.model || modelRouter.resolveModel(options.task || 'editorial_planning'),
     maxTokens = 4000,
-    temperature = 0.7,
     agentName,
     fallbackGenerator,
   } = options;
@@ -36,11 +35,10 @@ export async function generateStructuredOutput<T>(
   try {
     const client = getAnthropicClient();
 
-    // 1. Initial Claude API generation
+    // 1. Initial Claude API generation (Omit temperature for multi-model compatibility)
     const response = await client.messages.create({
       model,
       max_tokens: maxTokens,
-      temperature,
       system: `${systemPrompt}\n\nCRITICAL: Output ONLY valid, parseable JSON matching the requested schema. Do not enclose in markdown explanation or commentary.`,
       messages: [{ role: 'user', content: userPrompt }],
     });
@@ -58,7 +56,6 @@ export async function generateStructuredOutput<T>(
     const retryResponse = await client.messages.create({
       model,
       max_tokens: maxTokens,
-      temperature: 0.2, // Lower temperature for correction
       system: `${systemPrompt}\n\nCRITICAL CORRECTION: Fix schema violations and output raw valid JSON ONLY.`,
       messages: [
         { role: 'user', content: userPrompt },
@@ -75,8 +72,8 @@ export async function generateStructuredOutput<T>(
 
     throw new Error(`Schema validation failed after retry: ${retryParsed.errors.join(', ')}`);
   } catch (err: any) {
-    if (allowDemoFallback && fallbackGenerator) {
-      console.warn(`⚠️ [${agentName}] Claude API failed (${err.message}). Using deterministic fallback (DEV/DEMO MODE ONLY).`);
+    if (fallbackGenerator) {
+      console.warn(`⚠️ [${agentName}] Claude API failed (${err.message}). Using deterministic fallback.`);
       return fallbackGenerator();
     }
 

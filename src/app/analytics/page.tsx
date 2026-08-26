@@ -124,16 +124,18 @@ export default function AnalyticsPage() {
                   analytics.some(x => x.episode_id === a.episode_id)
                 )
                 const views = campAnalytics.reduce((s, a) => s + a.views, 0)
+                const accentColor = (c as any).accent_color || '#ffd166';
+                const status = (c as any).status || 'active';
                 return (
                   <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-bg-surface2">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: c.accent_color }} />
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: accentColor }} />
                     <span className="text-sm flex-1">{c.name}</span>
                     <span className="font-mono text-sm text-muted-foreground">{views.toLocaleString()} views</span>
                     <span
                       className="text-xs font-mono px-2 py-0.5 rounded border border-border-DEFAULT capitalize"
-                      style={{ color: c.accent_color }}
+                      style={{ color: accentColor }}
                     >
-                      {c.status}
+                      {status}
                     </span>
                   </div>
                 )
